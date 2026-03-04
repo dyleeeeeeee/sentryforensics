@@ -48,7 +48,7 @@ export default function RootLayout({
         <Script
           id="chatway"
           strategy="afterInteractive"
-          src="https://cdn.chatway.app/widget.js?id=YxViDdpq0RnI"
+          src="https://cdn.chatway.app/widget.js?id=aUwIgVCFpriT"
         />
       </body>
     </html>

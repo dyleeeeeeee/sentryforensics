@@ -11,7 +11,7 @@ export default function RecoverWalletPage() {
     <main className="py-12 sm:py-16">
       <Container>
         <div className="grid gap-6">
-          <header className="scroll-animate">
+          <header>
             <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl animate-fade-in">
               Intake
             </h1>
@@ -21,7 +21,7 @@ export default function RecoverWalletPage() {
             </p>
           </header>
 
-          <GlassCard className="scroll-animate">
+          <GlassCard>
             <IntakeFlow />
           </GlassCard>
 
