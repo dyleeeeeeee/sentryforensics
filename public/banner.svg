@@ -1,0 +1,30 @@
+<svg width="800" height="200" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+<!-- Shield Emblem (Scaled) -->
+<g transform="translate(20, 10) scale(0.45)">
+<defs>
+<linearGradient id="shieldGradB" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" style="stop-color:#0f3460;stop-opacity:1" />
+<stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+</linearGradient>
+</defs>
+<path d="M200 40 L340 90 C340 230 200 360 200 360 C200 360 60 230 60 90 L200 40Z" fill="url(#shieldGradB)" stroke="#4ecca3" stroke-width="8"/>
+<g stroke="#4ecca3" stroke-width="4" fill="none">
+<path d="M200 140 L240 160 L240 190 L160 190 L160 220 L200 240" />
+<circle cx="200" cy="190" r="15" />
+<line x1="150" y1="260" x2="185" y2="210" stroke-width="15" stroke-linecap="round"/>
+</g>
+</g>
+
+<!-- Text -->
+
+<style>
+.title { font: bold 52px Arial, sans-serif; fill: #0f3460; }
+.subtitle { font: bold 48px Arial, sans-serif; fill: #0f3460; letter-spacing: 2px; }
+.tagline { font: 20px Arial, sans-serif; fill: #00adb5; text-transform: uppercase; font-weight: bold; }
+</style>
+
+<text x="210" y="70" class="title">SENTRY</text>
+<text x="210" y="125" class="subtitle">FORENSICS</text>
+<line x1="210" y1="145" x2="700" y2="145" stroke="#4ecca3" stroke-width="3" />
+<text x="210" y="175" class="tagline">Trusted Crypto Investigations</text>
+</svg>

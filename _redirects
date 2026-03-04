@@ -1,0 +1,8 @@
+# Cloudflare Pages redirects for Next.js static export
+/home / 200
+/intake /recover-wallet 200
+/process /process 200
+/services /services 200
+/docs /docs 200
+/faq /faq 200
+/contact /contact 200
