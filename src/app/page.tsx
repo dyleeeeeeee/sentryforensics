@@ -81,10 +81,10 @@ export default function Page() {
               </p>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 hover-scale">
+                {/* <div className="rounded-2xl border border-white/10 bg-black/20 p-4 hover-scale">
                   <p className="text-sm font-medium text-white">No Upfront Costs</p>
                   <p className="mt-1 text-sm text-white/70">You only pay when we successfully recover your assets. No recovery, no fee.</p>
-                </div>
+                </div> */}
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4 hover-scale">
                   <p className="text-sm font-medium text-white">Fast Recovery</p>
                   <p className="mt-1 text-sm text-white/70">Our advanced algorithms work quickly to trace and recover your digital assets.</p>
@@ -108,6 +108,7 @@ export default function Page() {
                 </p>
               </div>
             </div>
+            
           </div>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-3">
@@ -130,45 +131,6 @@ export default function Page() {
               </p>
             </div>
           </div>
-
-          <section className="mt-12 scroll-animate">
-            <Reveal>
-              <div className="glass-card rounded-3xl p-6 sm:p-8">
-              <h2 className="text-xl font-semibold tracking-tight text-white">
-                Why Choose Our Recovery Service?
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-white/70">
-                We combine cutting-edge blockchain technology with expert recovery specialists to maximize your chances of recovery.
-              </p>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <Reveal delayMs={80} className="contents">
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 hover-scale animate-stagger-1">
-                  <p className="text-sm font-medium text-white">No Upfront Costs</p>
-                  <p className="mt-1 text-sm text-white/70">You only pay when we successfully recover your assets. No recovery, no fee.</p>
-                  </div>
-                </Reveal>
-                <Reveal delayMs={140} className="contents">
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 hover-scale animate-stagger-2">
-                  <p className="text-sm font-medium text-white">Fast Recovery</p>
-                  <p className="mt-1 text-sm text-white/70">Our advanced algorithms work quickly to trace and recover your digital assets.</p>
-                  </div>
-                </Reveal>
-                <Reveal delayMs={200} className="contents">
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 hover-scale animate-stagger-3">
-                  <p className="text-sm font-medium text-white">Secure Process</p>
-                  <p className="mt-1 text-sm text-white/70">End-to-end encryption and secure protocols protect your information.</p>
-                  </div>
-                </Reveal>
-                <Reveal delayMs={260} className="contents">
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 hover-scale animate-stagger-4">
-                  <p className="text-sm font-medium text-white">24/7 Support</p>
-                  <p className="mt-1 text-sm text-white/70">Our team is available around the clock to assist with your recovery needs.</p>
-                  </div>
-                </Reveal>
-              </div>
-              </div>
-            </Reveal>
-          </section>
 
           <section className="mt-12 scroll-animate">
             <Reveal>
