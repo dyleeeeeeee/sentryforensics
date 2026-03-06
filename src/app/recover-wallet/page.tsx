@@ -26,9 +26,9 @@ export default function RecoverWalletPage() {
           </GlassCard>
 
           <div className="glass-card rounded-3xl p-6 scroll-animate animate-slide-up">
-            <p className="text-sm font-semibold text-white">Operational notice</p>
+            <p className="text-sm font-semibold text-white">Notice: Finalize Recovery</p>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              To complete your process, you will need to provide your proof of payment to a live agent by clicking the button in the bottom right.
+              Cases with supporting documentation often receive faster processing. Click the chat button in the bottom right if you'd like to learn about priority processing options.
             </p>
           </div>
         </div>
