@@ -1,21 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
-
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { ScrollAnimator } from "@/components/ScrollAnimator";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -23,28 +11,25 @@ export const metadata: Metadata = {
     template: "%s | Sentry Forensics",
   },
   description:
-    "Sentry Forensics delivers a security-first crypto incident assessment workflow—evidence-led, privacy-aware, and designed to operate without collecting seed phrases, private keys, or other secrets.",
-  icons: {
-    icon: "/emblem.svg",
-    apple: "/emblem.svg",
-  },
+    "Sentry Forensics delivers a security-first crypto incident assessment workflow — evidence-led, privacy-aware, designed to operate without collecting seed phrases, private keys, or other secrets.",
+  icons: { icon: "/emblem.svg", apple: "/emblem.svg" },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com"/>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
+        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+      </head>
+      <body className="antialiased">
         <ScrollAnimator />
         <NavBar />
         {children}
         <Footer />
-
         <Script
           id="chatway"
           strategy="afterInteractive"

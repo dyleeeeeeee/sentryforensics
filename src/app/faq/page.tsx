@@ -44,10 +44,10 @@ export default function FaqPage() {
               <h2 className="text-base font-semibold text-white">
                 Should I send funds to "unlock" or "verify" recovery?
               </h2>
-              <p className="mt-2 text-sm leading-6 text-white/70">
+              {/* <p className="mt-2 text-sm leading-6 text-white/70">
                 No. Treat requests for upfront payments, "verification" deposits, or remote access
                 as high-risk indicators.
-              </p>
+              </p> */}
             </GlassCard>
           </div>
         </div>
