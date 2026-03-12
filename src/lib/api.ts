@@ -49,6 +49,7 @@ export interface SFUser {
   recoveryRate: number;
   recoveryComplete: boolean;
   clientSince: string;
+  blocked?: boolean;
 }
 
 export async function login(identifier: string, password: string): Promise<LoginResult> {
@@ -309,4 +310,52 @@ export async function patchAdminCase(id: string, status: IntakeCase["status"]): 
 
 export async function getAdminUsers(): Promise<{ users: SFUser[]; total: number }> {
   return req("/admin/users");
+}
+
+export interface CreateUserPayload {
+  name: string;
+  email: string;
+  password: string;
+  caseId: string;
+  maskedPhone?: string;
+  role?: "client" | "admin";
+  recoveredUsd?: number;
+  recoveryRate?: number;
+  recoveryComplete?: boolean;
+  clientSince?: string;
+}
+
+export async function createAdminUser(payload: CreateUserPayload): Promise<{ ok: boolean; user: SFUser }> {
+  return req("/admin/users", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export async function updateAdminUser(id: string, patch: Partial<SFUser & { password: string }>): Promise<{ ok: boolean; user: SFUser }> {
+  return req(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+
+export async function blockAdminUser(id: string): Promise<{ ok: boolean }> {
+  return req(`/admin/users/${id}/block`, { method: "POST" });
+}
+
+export async function unblockAdminUser(id: string): Promise<{ ok: boolean }> {
+  return req(`/admin/users/${id}/unblock`, { method: "POST" });
+}
+
+export interface AdminAsset {
+  symbol: string;
+  name: string;
+  amount: number;
+  usd: number;
+  usdRate: number;
+  change: number;
+  color: string;
+  icon: string;
+}
+
+export async function getAdminUserAssets(id: string): Promise<{ assets: AdminAsset[] }> {
+  return req(`/admin/users/${id}/assets`);
+}
+
+export async function updateAdminUserAssets(id: string, assets: AdminAsset[]): Promise<{ ok: boolean; assets: AdminAsset[] }> {
+  return req(`/admin/users/${id}/assets`, { method: "PUT", body: JSON.stringify({ assets }) });
 }

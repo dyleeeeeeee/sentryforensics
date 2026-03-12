@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { getAdminCases, patchAdminCase, type IntakeCase } from "@/lib/api";
+import { getAdminCases, patchAdminCase, createAdminUser, type IntakeCase } from "@/lib/api";
 
 const STATUS_OPTIONS: IntakeCase["status"][] = ["new", "reviewing", "in_progress", "closed"];
 
@@ -17,6 +17,8 @@ export default function AdminCasesPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [filter, setFilter] = useState<IntakeCase["status"] | "all">("all");
+  const [creatingUser, setCreatingUser] = useState<string | null>(null);
+  const [createMsg, setCreateMsg] = useState<{ id: string; msg: string; ok: boolean } | null>(null);
 
   useEffect(() => {
     getAdminCases()
@@ -36,6 +38,25 @@ export default function AdminCasesPage() {
       console.error(e);
     } finally {
       setUpdating(null);
+    }
+  }
+
+  async function handleCreateUser(c: IntakeCase) {
+    setCreatingUser(c.id);
+    setCreateMsg(null);
+    try {
+      await createAdminUser({
+        name: c.fullName,
+        email: c.email,
+        password: crypto.randomUUID().slice(0, 12),
+        caseId: c.id,
+        clientSince: new Date().toLocaleString("en-US", { month: "short", year: "numeric" }),
+      });
+      setCreateMsg({ id: c.id, msg: "Portal account created. Set their password via Edit in Users.", ok: true });
+    } catch (err: unknown) {
+      setCreateMsg({ id: c.id, msg: err instanceof Error ? err.message : "Failed to create user", ok: false });
+    } finally {
+      setCreatingUser(null);
     }
   }
 
@@ -129,6 +150,21 @@ export default function AdminCasesPage() {
                           </button>
                         ))}
                       </div>
+                    </div>
+                    <div className="pt-1 border-t" style={{ borderColor: "var(--glass-border)" }}>
+                      <p className="text-[10px] text-white/30 mb-2" style={{ fontFamily: "var(--font-mono)" }}>PORTAL ACCESS</p>
+                      {createMsg?.id === c.id && (
+                        <p className={`text-xs mb-2 px-3 py-2 rounded-lg ${createMsg.ok ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>{createMsg.msg}</p>
+                      )}
+                      <button
+                        onClick={() => handleCreateUser(c)}
+                        disabled={creatingUser === c.id}
+                        className="px-4 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-40 flex items-center gap-2"
+                        style={{ background: "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))", color: "#04060d" }}>
+                        {creatingUser === c.id
+                          ? <><span className="h-3 w-3 border-2 rounded-full animate-spin inline-block" style={{ borderColor: "#04060d", borderTopColor: "transparent" }} /> Creating…</>
+                          : "+ Create Portal User"}
+                      </button>
                     </div>
                   </div>
                 )}
