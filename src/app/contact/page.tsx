@@ -41,7 +41,7 @@ export default function ContactPage() {
                   <div className="text-xs font-medium uppercase tracking-[0.18em] text-white/55">
                     Email
                   </div>
-                  <div className="mt-2 text-sm font-semibold text-white">
+                  <div className="mt-2 text-sm font-semibold text-white break-all">
                     contact@sentryforensics.com
                   </div>
                   <div className="mt-1 text-xs leading-5 text-white/55">

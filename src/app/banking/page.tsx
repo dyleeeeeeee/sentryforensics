@@ -85,7 +85,7 @@ export default function BankingLoginPage() {
         </div>
 
         {step === "login" ? (
-          <div className="animate-fade-in rounded-2xl p-6" style={{ background: "var(--glass-2)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow-xl)" }}>
+          <div className="animate-fade-in rounded-2xl p-4 sm:p-6" style={{ background: "var(--glass-2)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow-xl)" }}>
             <div className="mb-6">
               <p className="text-xs font-semibold text-white/40 mb-4 tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>SIGN IN</p>
               <div className="space-y-3">
@@ -127,7 +127,7 @@ export default function BankingLoginPage() {
             </div>
           </div>
         ) : (
-          <div className="animate-fade-in rounded-2xl p-6" style={{ background: "var(--glass-2)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow-xl)" }}>
+          <div className="animate-fade-in rounded-2xl p-4 sm:p-6" style={{ background: "var(--glass-2)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow-xl)" }}>
             <div className="text-center mb-6">
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-full mb-3"
                 style={{ background: "var(--accent-emerald-dim)", border: "1px solid rgba(0,240,160,0.2)" }}>
@@ -140,11 +140,11 @@ export default function BankingLoginPage() {
               {otpHint && <p className="text-xs mt-1" style={{color:"var(--accent-teal)"}}>Demo OTP: <span style={{fontFamily:"var(--font-mono)"}}>{otpHint}</span></p>}
             </div>
             {error && <p className="mb-3 text-xs text-red-400 text-center">{error}</p>}
-            <div className="flex gap-2 justify-center mb-5">
+            <div className="flex gap-1.5 sm:gap-2 justify-center mb-5">
               {pin.map((v, i) => (
-                <input key={i} type="text" maxLength={1} value={v}
+                <input key={i} type="text" inputMode="numeric" maxLength={1} value={v}
                   onChange={(e) => { const n = [...pin]; n[i] = e.target.value; setPin(n); }}
-                  className="w-10 h-12 text-center text-lg font-bold rounded-lg outline-none transition-all"
+                  className="flex-1 min-w-0 max-w-[48px] h-12 text-center text-lg font-bold rounded-lg outline-none transition-all"
                   style={{ background: v ? "rgba(0,212,255,0.1)" : "var(--glass-1)", border: v ? "1px solid rgba(0,212,255,0.3)" : "1px solid var(--glass-border)", color: "var(--fg-primary)", fontFamily: "var(--font-mono)" }}/>
               ))}
             </div>

@@ -43,7 +43,7 @@ export default function AdminOverviewPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {stats.map((s) => (
               <div key={s.label} className="glass-card rounded-2xl p-4 space-y-1">
                 <p className="text-xs text-white/40">{s.label}</p>
@@ -62,13 +62,13 @@ export default function AdminOverviewPage() {
             </div>
             <div className="space-y-2">
               {cases.slice(0, 5).map((c) => (
-                <div key={c.id} className="flex items-center justify-between py-2.5 px-3 rounded-xl"
+                <div key={c.id} className="flex items-start sm:items-center gap-2 py-2.5 px-3 rounded-xl"
                   style={{ background: "var(--glass-1)", border: "1px solid var(--glass-border)" }}>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-white truncate">{c.fullName}</p>
                     <p className="text-xs text-white/40 truncate">{c.incidentType} · {c.submittedAt}</p>
                   </div>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ml-3 shrink-0 ${
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0 ${
                     c.status === "new" ? "bg-yellow-500/10 text-yellow-400" :
                     c.status === "reviewing" ? "bg-violet-500/10 text-violet-400" :
                     c.status === "in_progress" ? "bg-teal-500/10 text-teal-400" :

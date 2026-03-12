@@ -60,7 +60,7 @@ export default function HomePage() {
           style={{ background: "radial-gradient(circle, rgba(157,111,255,0.09) 0%, transparent 70%)", filter: "blur(50px)" }}/>
 
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid gap-14 lg:grid-cols-2 lg:gap-16 items-center">
+          <div className="grid gap-8 lg:grid-cols-2 lg:gap-16 items-center">
             <div>
               {/* Pill badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 animate-fade-in"
@@ -108,7 +108,7 @@ export default function HomePage() {
             </div>
 
             {/* Hero card */}
-            <div className="glass-card rounded-3xl p-6 sm:p-8 animate-slide-in-right" style={{ border: "1px solid var(--glass-border-accent)" }}>
+            <div className="glass-card rounded-3xl p-4 sm:p-8 animate-slide-in-right" style={{ border: "1px solid var(--glass-border-accent)" }}>
               <div className="absolute inset-x-0 top-0 h-px rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)" }}/>
 
               <div className="flex items-center justify-between mb-6">
@@ -124,7 +124,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { title: "Blockchain Forensics", desc: "Deep chain tracing across BTC, ETH, and 40+ networks", color: "var(--accent-teal)", icon: "⛓" },
                   // { title: "No Upfront Fee", desc: "You only pay when we successfully recover your assets", color: "var(--accent-emerald)", icon: "✓" },

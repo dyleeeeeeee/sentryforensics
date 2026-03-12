@@ -33,30 +33,31 @@ export default function AdminUsersPage() {
             {users.map((u) => {
               const initials = u.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
               return (
-                <div key={u.id} className="flex items-center gap-4 p-4">
+                <div key={u.id} className="flex items-center gap-3 p-4">
                   <span className="h-9 w-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold"
                     style={{ background: u.role === "admin" ? "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))" : "linear-gradient(135deg, #f59e0b, #fcd34d)", color: "#04060d" }}>
                     {initials}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold text-white">{u.name}</p>
                       <span className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                         style={{ background: u.role === "admin" ? "rgba(0,212,255,0.1)" : "rgba(245,158,11,0.1)", color: u.role === "admin" ? "var(--accent-teal)" : "#f59e0b" }}>
                         {u.role.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-xs text-white/40">{u.email}</p>
+                    <p className="text-xs text-white/40 truncate">{u.email}</p>
+                    <p className="text-xs text-white/30 sm:hidden" style={{ fontFamily: "var(--font-mono)" }}>{u.caseId}</p>
                   </div>
-                  <div className="text-right hidden sm:block">
+                  <div className="text-right hidden sm:block shrink-0">
                     <p className="text-xs text-white/50" style={{ fontFamily: "var(--font-mono)" }}>{u.caseId}</p>
                     <p className="text-xs text-white/30">Since {u.clientSince}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className="text-sm font-semibold" style={{ color: "var(--accent-emerald)" }}>
                       ${u.recoveredUsd.toLocaleString()}
                     </p>
-                    <p className="text-xs text-white/30">{u.recoveryRate}% recovered</p>
+                    <p className="text-xs text-white/30">{u.recoveryRate}%</p>
                   </div>
                 </div>
               );

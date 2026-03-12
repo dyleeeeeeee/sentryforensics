@@ -79,29 +79,29 @@ export default function TransactionsPage() {
 
       {/* Transactions list */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 border-b" style={{ borderColor: "var(--glass-border)" }}>
+        <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 border-b" style={{ borderColor: "var(--glass-border)" }}>
           {["TRANSACTION", "ASSET", "AMOUNT (USD)", "STATUS"].map(h => (
             <p key={h} className="text-[10px] font-semibold text-white/25 tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>{h}</p>
           ))}
         </div>
         <div className="divide-y" style={{ borderColor: "var(--glass-border)" }}>
           {filtered.map(tx => (
-            <div key={tx.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-5 py-3.5 transition-all cursor-default"
+            <div key={tx.id} className="flex items-center gap-3 sm:grid sm:grid-cols-[1fr_auto_auto_auto] sm:gap-4 px-4 sm:px-5 py-3.5 transition-all cursor-default"
               onMouseEnter={e => { e.currentTarget.style.background = "var(--glass-1)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white truncate">{tx.type}</p>
                 <p className="text-[11px] text-white/35" style={{ fontFamily: "var(--font-mono)" }}>{tx.date} · #{tx.id}</p>
               </div>
-              <span className="badge" style={{
+              <span className="badge hidden sm:inline-flex" style={{
                 background: tx.asset === "BTC" ? "rgba(245,158,11,0.1)" : tx.asset === "ETH" ? "rgba(157,111,255,0.1)" : tx.asset === "USDC" ? "rgba(0,212,255,0.1)" : "rgba(0,240,160,0.1)",
                 color: tx.asset === "BTC" ? "var(--gold-300)" : tx.asset === "ETH" ? "var(--accent-violet)" : tx.asset === "USDC" ? "var(--accent-teal)" : "var(--accent-emerald)",
                 border: "1px solid transparent",
               }}>{tx.asset}</span>
-              <p className="text-sm font-semibold text-right" style={{ fontFamily: "var(--font-mono)", color: tx.dir === "in" ? "var(--accent-emerald)" : "#ff6680" }}>
+              <p className="text-sm font-semibold shrink-0" style={{ fontFamily: "var(--font-mono)", color: tx.dir === "in" ? "var(--accent-emerald)" : "#ff6680" }}>
                 {tx.dir === "in" ? "+" : ""}{Math.abs(tx.usd).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
               </p>
-              <span className={`badge ${statusStyle[tx.status] || "badge-teal"}`} style={{ fontSize: "9px", justifySelf: "end" }}>{tx.status}</span>
+              <span className={`badge ${statusStyle[tx.status] || "badge-teal"} hidden sm:inline-flex`} style={{ fontSize: "9px" }}>{tx.status}</span>
             </div>
           ))}
         </div>
