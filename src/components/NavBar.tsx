@@ -77,11 +77,11 @@ export function NavBar() {
 
           {/* CTAs */}
           <div className="flex items-center gap-2">
-            <ButtonLink href="/recover-wallet" variant="secondary" className="hidden sm:inline-flex">
-              Start intake
+            <ButtonLink href="/banking" variant="secondary" className="hidden sm:inline-flex">
+              Client Portal
             </ButtonLink>
             <ButtonLink href="/recover-wallet" variant="primary">
-              <span className="hidden sm:inline">Secure</span> Intake
+              Start Intake
             </ButtonLink>
             {/* Mobile hamburger */}
             <button onClick={() => setMobileOpen(!mobileOpen)}
