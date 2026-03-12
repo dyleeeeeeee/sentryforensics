@@ -1,14 +1,31 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getSettings, saveSettings, type ProfileSettings } from "@/lib/api";
 
 export default function SettingsPage() {
+  const [profile, setProfile] = useState<ProfileSettings | null>(null);
   const [notifications, setNotifications] = useState({ email: true, sms: true, app: false });
   const [privacy, setPrivacy] = useState({ twoFactor: true, biometric: false, sessionLock: true });
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    getSettings().then(d => {
+      setProfile(d);
+      if (d.notifications) setNotifications(d.notifications);
+      if (d.privacy) setPrivacy(d.privacy);
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    if (!profile) return;
+    try {
+      await saveSettings({ ...profile, notifications, privacy });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const Toggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
@@ -33,12 +50,12 @@ export default function SettingsPage() {
         <div className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-lg font-bold"
             style={{ background: "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))", color: "#04060d" }}>
-            AC
+            {profile?.initials ?? ""}
           </div>
           <div>
-            <p className="font-semibold text-white">Alexander Chen</p>
-            <p className="text-sm text-white/40">alexander.chen@example.com</p>
-            <p className="text-xs text-white/25 mt-0.5" style={{ fontFamily: "var(--font-mono)" }}>Client since Feb 2026</p>
+            <p className="font-semibold text-white">{profile?.name ?? ""}</p>
+            <p className="text-sm text-white/40">{profile?.email ?? ""}</p>
+            <p className="text-xs text-white/25 mt-0.5" style={{ fontFamily: "var(--font-mono)" }}>Client since {profile?.clientSince ?? ""}</p>
           </div>
           <button className="ml-auto text-xs px-3 py-1.5 rounded-lg"
             style={{ background: "var(--glass-1)", border: "1px solid var(--glass-border)", color: "var(--fg-secondary)" }}>
@@ -46,7 +63,7 @@ export default function SettingsPage() {
           </button>
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
-          {[["Full Name", "Alexander Chen"], ["Email", "alexander.chen@example.com"], ["Phone", "+44 •••• •• 7823"], ["Case #", "SF-2024-0847"]].map(([label, val]) => (
+          {([["Full Name", profile?.name ?? ""], ["Email", profile?.email ?? ""], ["Phone", profile?.phone ?? ""], ["Case #", profile?.caseId ?? ""]] as [string, string][]).map(([label, val]) => (
             <div key={label}>
               <label className="block text-xs text-white/35 mb-1.5">{label}</label>
               <input className="sf-input text-sm" defaultValue={val} readOnly={label === "Case #"}/>

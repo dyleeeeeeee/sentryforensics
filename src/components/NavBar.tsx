@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Container } from "@/components/Container";
 import { ButtonLink } from "@/components/Button";
+import { getStoredUser } from "@/lib/api";
 
 const navLinks = [
   { href: "/services", label: "Services" },
@@ -15,6 +16,12 @@ const navLinks = [
 
 export function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const user = getStoredUser();
+    setIsAdmin(user?.role === "admin");
+  }, []);
 
   return (
     <header className="sticky top-0 z-40">
@@ -56,6 +63,16 @@ export function NavBar() {
               </svg>
               Banking Portal
             </Link>
+            {isAdmin && (
+              <Link href="/admin"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                style={{ color: "var(--accent-teal)", background: "rgba(0,212,255,0.07)", border: "1px solid rgba(0,212,255,0.15)" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Admin Portal
+              </Link>
+            )}
           </nav>
 
           {/* CTAs */}
@@ -102,6 +119,16 @@ export function NavBar() {
                 </svg>
                 Banking Portal
               </Link>
+              {isAdmin && (
+                <Link href="/admin" onClick={() => setMobileOpen(false)}
+                  className="px-3 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2"
+                  style={{ color: "var(--accent-teal)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Admin Portal
+                </Link>
+              )}
             </Container>
           </div>
         )}

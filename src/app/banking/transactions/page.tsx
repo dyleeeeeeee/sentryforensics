@@ -1,17 +1,6 @@
 "use client";
-import { useState } from "react";
-
-const ALL_TX = [
-  { id: "t001", type: "Recovery Credit", asset: "BTC", amount: "+3.42 BTC", usd: 207842, date: "Mar 8, 2026", status: "complete", category: "recovery", dir: "in" },
-  { id: "t002", type: "Recovery Credit", asset: "ETH", amount: "+15.8 ETH", usd: 47556, date: "Mar 8, 2026", status: "complete", category: "recovery", dir: "in" },
-  { id: "t003", type: "Recovery Credit", asset: "USDC", amount: "+28,420 USDC", usd: 28420, date: "Mar 8, 2026", status: "complete", category: "recovery", dir: "in" },
-  { id: "t004", type: "Recovery Credit", asset: "SOL", amount: "+92.4 SOL", usd: 11982, date: "Mar 8, 2026", status: "complete", category: "recovery", dir: "in" },
-  { id: "t005", type: "Forensics Service Fee", asset: "USD", amount: "-$12,400", usd: -12400, date: "Mar 9, 2026", status: "complete", category: "fee", dir: "out" },
-  { id: "t006", type: "Yield Interest", asset: "USDC", amount: "+142 USDC", usd: 142, date: "Mar 10, 2026", status: "pending", category: "yield", dir: "in" },
-  { id: "t007", type: "Withdrawal Request", asset: "USDC", amount: "-5,000 USDC", usd: -5000, date: "Mar 10, 2026", status: "processing", category: "transfer", dir: "out" },
-  { id: "t008", type: "Conversion BTC→USDC", asset: "BTC", amount: "-0.1 BTC", usd: -6080, date: "Mar 9, 2026", status: "complete", category: "exchange", dir: "out" },
-  { id: "t009", type: "Conversion BTC→USDC", asset: "USDC", amount: "+6,050 USDC", usd: 6050, date: "Mar 9, 2026", status: "complete", category: "exchange", dir: "in" },
-];
+import { useState, useEffect, useCallback } from "react";
+import { getTransactions, type TransactionsResult } from "@/lib/api";
 
 const FILTERS = ["All", "Recovery", "Transfer", "Yield", "Fee", "Exchange"];
 
@@ -25,12 +14,22 @@ const statusStyle: Record<string, string> = {
 export default function TransactionsPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const [result, setResult] = useState<TransactionsResult | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = ALL_TX.filter(tx => {
-    const matchFilter = filter === "All" || tx.category.toLowerCase() === filter.toLowerCase();
-    const matchSearch = !search || tx.type.toLowerCase().includes(search.toLowerCase()) || tx.asset.toLowerCase().includes(search.toLowerCase());
-    return matchFilter && matchSearch;
-  });
+  const fetchData = useCallback(() => {
+    setLoading(true);
+    getTransactions(filter, search)
+      .then(setResult)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [filter, search]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const filtered = result?.transactions ?? [];
+  const summary = result?.summary ?? { credited: 0, debited: 0, pending: 0, net: 0 };
+  const total = result?.total ?? 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
@@ -42,10 +41,10 @@ export default function TransactionsPage() {
       {/* Summary row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Credited", value: "$295,800", color: "var(--accent-emerald)" },
-          { label: "Total Debited", value: "$17,400", color: "#ff6680" },
-          { label: "Pending", value: "$5,142", color: "var(--gold-300)" },
-          { label: "Net Balance", value: "$278,400", color: "var(--accent-teal)" },
+          { label: "Total Credited", value: `$${summary.credited.toLocaleString()}`, color: "var(--accent-emerald)" },
+          { label: "Total Debited", value: `$${summary.debited.toLocaleString()}`, color: "#ff6680" },
+          { label: "Pending", value: `$${summary.pending.toLocaleString()}`, color: "var(--gold-300)" },
+          { label: "Net Balance", value: `$${summary.net.toLocaleString()}`, color: "var(--accent-teal)" },
         ].map(item => (
           <div key={item.label} className="glass-card rounded-xl p-4">
             <p className="text-[10px] text-white/35 mb-1.5 tracking-wide" style={{ fontFamily: "var(--font-mono)" }}>{item.label}</p>
@@ -112,7 +111,7 @@ export default function TransactionsPage() {
       </div>
 
       <div className="flex items-center justify-between text-xs text-white/30" style={{ fontFamily: "var(--font-mono)" }}>
-        <span>Showing {filtered.length} of {ALL_TX.length} transactions</span>
+        <span>Showing {filtered.length} of {total} transactions</span>
         <button className="px-3 py-1.5 rounded-lg transition-all" style={{ background: "var(--glass-1)", border: "1px solid var(--glass-border)" }}
           onMouseEnter={e => (e.currentTarget.style.background = "var(--glass-2)")}
           onMouseLeave={e => (e.currentTarget.style.background = "var(--glass-1)")}>

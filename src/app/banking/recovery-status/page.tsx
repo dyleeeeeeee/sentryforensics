@@ -1,25 +1,24 @@
 "use client";
-import { useState } from "react";
-
-const TIMELINE = [
-  { date: "Feb 3, 2026", time: "14:22 UTC", event: "Case Opened", detail: "Intake form submitted via secure portal. Case SF-2024-0847 assigned.", status: "done", icon: "📋" },
-  { date: "Feb 4, 2026", time: "09:15 UTC", event: "Initial Assessment", detail: "Forensic team reviewed submitted transaction hashes and wallet addresses. Attack vector identified as phishing-based credential theft.", status: "done", icon: "🔍" },
-  { date: "Feb 10, 2026", time: "11:00 UTC", event: "Blockchain Tracing", detail: "Deep chain analysis across 3 networks. 18 hop trail followed across mixing services. Associated wallet clusters identified.", status: "done", icon: "⛓" },
-  { date: "Feb 22, 2026", time: "16:40 UTC", event: "Attribution Report", detail: "Attack attributed to known threat actor cluster. Full dossier prepared. Law enforcement liaison completed.", status: "done", icon: "📊" },
-  { date: "Mar 1, 2026", time: "10:00 UTC", event: "Legal Recovery Motion", detail: "Assets flagged for recovery via exchange cooperation agreement. Freeze order executed on 4 exchange accounts.", status: "done", icon: "⚖️" },
-  { date: "Mar 8, 2026", time: "08:00 UTC", event: "Funds Recovered", detail: "3.42 BTC + 15.8 ETH + 28,420 USDC + 92.4 SOL successfully credited to recovery vault. 96.2% recovery rate achieved.", status: "done", icon: "✅" },
-  { date: "Mar 10, 2026", time: "Ongoing", event: "Continued Monitoring", detail: "Threat actor wallet activity monitored for potential remaining assets. Quarterly reports scheduled.", status: "active", icon: "👁" },
-];
-
-const EVIDENCE = [
-  { name: "Forensic Analysis Report", type: "PDF", size: "4.2 MB", date: "Feb 22, 2026" },
-  { name: "Blockchain Trace Map", type: "PDF", size: "8.7 MB", date: "Feb 10, 2026" },
-  { name: "Attribution Dossier (Redacted)", type: "PDF", size: "2.1 MB", date: "Feb 22, 2026" },
-  { name: "Recovery Confirmation", type: "PDF", size: "0.8 MB", date: "Mar 8, 2026" },
-];
+import { useState, useEffect } from "react";
+import { getRecoveryStatus, type RecoveryStatusData } from "@/lib/api";
 
 export default function RecoveryStatusPage() {
+  const [data, setData] = useState<RecoveryStatusData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [expandedEvent, setExpandedEvent] = useState<number | null>(5);
+
+  useEffect(() => {
+    getRecoveryStatus().then(setData).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <span className="h-8 w-8 border-2 rounded-full animate-spin" style={{ borderColor: "var(--accent-teal)", borderTopColor: "transparent" }}/>
+    </div>
+  );
+  if (!data) return <div className="text-center text-white/40 py-16">Failed to load recovery status.</div>;
+
+  const { caseId, status: caseStatus, recoveredUsd, recoveryRate, openedDate, closedDate, originalClaim, recoveryDays, networksTraced, timeline, evidence } = data;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -41,19 +40,19 @@ export default function RecoveryStatusPage() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Case #SF-2024-0847</h2>
-              <span className="badge badge-success">CLOSED – RECOVERED</span>
+              <h2 className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Case #{caseId}</h2>
+              <span className="badge badge-success">{caseStatus.toUpperCase()}</span>
             </div>
-            <p className="text-sm text-white/45 mt-1">Multi-chain phishing recovery · Opened Feb 3, 2026 · Closed Mar 8, 2026</p>
+            <p className="text-sm text-white/45 mt-1">Multi-chain phishing recovery · Opened {openedDate}{closedDate ? ` · Closed ${closedDate}` : ""}</p>
           </div>
           <div className="grid grid-cols-2 gap-4 text-center sm:text-right">
             <div>
               <p className="text-xs text-white/30 mb-1" style={{ fontFamily: "var(--font-mono)" }}>RECOVERED</p>
-              <p className="text-xl font-extrabold" style={{ fontFamily: "var(--font-display)", color: "var(--accent-emerald)" }}>$295,800</p>
+              <p className="text-xl font-extrabold" style={{ fontFamily: "var(--font-display)", color: "var(--accent-emerald)" }}>${recoveredUsd.toLocaleString()}</p>
             </div>
             <div>
               <p className="text-xs text-white/30 mb-1" style={{ fontFamily: "var(--font-mono)" }}>RATE</p>
-              <p className="text-xl font-extrabold" style={{ fontFamily: "var(--font-display)", color: "var(--accent-teal)" }}>96.2%</p>
+              <p className="text-xl font-extrabold" style={{ fontFamily: "var(--font-display)", color: "var(--accent-teal)" }}>{recoveryRate}%</p>
             </div>
           </div>
         </div>
@@ -61,9 +60,9 @@ export default function RecoveryStatusPage() {
 
       <div className="grid sm:grid-cols-3 gap-4">
         {[
-          { label: "Original Claim", value: "$307,440", sub: "Across 4 assets" },
-          { label: "Time to Recovery", value: "33 days", sub: "Feb 3 → Mar 8" },
-          { label: "Networks Traced", value: "3 chains", sub: "BTC · ETH · SOL" },
+          { label: "Original Claim", value: `$${originalClaim.toLocaleString()}`, sub: "Across all assets" },
+          { label: "Time to Recovery", value: `${recoveryDays} days`, sub: `${openedDate}${closedDate ? ` → ${closedDate}` : ""}` },
+          { label: "Networks Traced", value: `${networksTraced} chains`, sub: "BTC · ETH · SOL" },
         ].map(item => (
           <div key={item.label} className="glass-card rounded-xl p-4 text-center">
             <p className="text-xs text-white/30 mb-2" style={{ fontFamily: "var(--font-mono)" }}>{item.label}</p>
@@ -82,7 +81,7 @@ export default function RecoveryStatusPage() {
           <div className="relative">
             <div className="absolute left-5 top-0 bottom-0 w-px" style={{ background: "var(--glass-border)" }}/>
             <div className="space-y-4">
-              {TIMELINE.map((event, i) => (
+              {timeline.map((event, i) => (
                 <div key={i} className="flex gap-4">
                   <div className="relative z-10 flex-shrink-0">
                     <div className="h-10 w-10 rounded-full flex items-center justify-center text-sm transition-all"
@@ -123,7 +122,7 @@ export default function RecoveryStatusPage() {
           <h2 className="font-semibold text-white">Evidence & Reports</h2>
         </div>
         <div className="divide-y" style={{ borderColor: "var(--glass-border)" }}>
-          {EVIDENCE.map(file => (
+          {evidence.map(file => (
             <div key={file.name} className="flex items-center gap-4 px-6 py-4 transition-all cursor-pointer"
               onMouseEnter={e => (e.currentTarget.style.background = "var(--glass-1)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>

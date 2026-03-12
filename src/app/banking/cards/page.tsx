@@ -1,30 +1,30 @@
 "use client";
-import { useState } from "react";
-
-const CARDS = [
-  {
-    id: "c1", name: "Recovery VISA", number: "4847 •••• •••• 7291", expiry: "03/28", holder: "Alexander Chen",
-    limit: 10000, spent: 1240, status: "active", frozen: false,
-    gradient: "linear-gradient(135deg, #0d1117 0%, #1a1f2e 50%, #0d1117 100%)",
-    accent: "#00d4ff",
-  },
-  {
-    id: "c2", name: "Sentry Gold MC", number: "5234 •••• •••• 4419", expiry: "09/27", holder: "Alexander Chen",
-    limit: 25000, spent: 0, status: "active", frozen: false,
-    gradient: "linear-gradient(135deg, #1a0f00 0%, #2d1a00 50%, #1a0f00 100%)",
-    accent: "#f59e0b",
-  },
-];
+import { useState, useEffect } from "react";
+import { getCards, freezeCard, type Card } from "@/lib/api";
 
 export default function CardsPage() {
-  const [selectedCard, setSelectedCard] = useState(CARDS[0].id);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [selectedCard, setSelectedCard] = useState("");
   const [showNumber, setShowNumber] = useState(false);
-  const [cards, setCards] = useState(CARDS);
+  const [loading, setLoading] = useState(true);
 
-  const active = cards.find(c => c.id === selectedCard)!;
+  useEffect(() => {
+    getCards().then(d => {
+      setCards(d.cards);
+      if (d.cards.length > 0) setSelectedCard(d.cards[0].id);
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
 
-  const toggleFreeze = () => {
-    setCards(prev => prev.map(c => c.id === selectedCard ? { ...c, frozen: !c.frozen } : c));
+  const active = cards.find(c => c.id === selectedCard);
+
+  const toggleFreeze = async () => {
+    if (!selectedCard) return;
+    try {
+      const result = await freezeCard(selectedCard);
+      setCards(result.cards);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (

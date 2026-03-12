@@ -1,3 +1,8 @@
 name = "sentryforensics"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "out"
+
+[[kv_namespaces]]
+binding = "SENTRY_KV"
+id = "ec2038825626480d9aa762041545caa0"
+preview_id = "42649c0304b84872a649396ac9305bac"

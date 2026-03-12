@@ -1,21 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-
-const ASSETS = [
-  { symbol: "BTC", name: "Bitcoin", amount: 3.42, usd: 207842, change: +2.34, color: "#f59e0b", icon: "₿" },
-  { symbol: "ETH", name: "Ethereum", amount: 15.8, usd: 47556, change: -0.87, color: "#9d6fff", icon: "Ξ" },
-  { symbol: "USDC", name: "USD Coin", amount: 28420, usd: 28420, change: 0.01, color: "#00d4ff", icon: "$" },
-  { symbol: "SOL", name: "Solana", amount: 92.4, usd: 11982, change: +5.12, color: "#00f0a0", icon: "◎" },
-];
-
-const RECENT_TX = [
-  { id: "tx1", type: "Recovery Credit", asset: "BTC", amount: "+3.42 BTC", usd: "+$207,842", date: "Mar 8, 2026", status: "complete", icon: "↓" },
-  { id: "tx2", type: "Recovery Credit", asset: "ETH", amount: "+15.8 ETH", usd: "+$47,556", date: "Mar 8, 2026", status: "complete", icon: "↓" },
-  { id: "tx3", type: "Recovery Credit", asset: "USDC", amount: "+28,420 USDC", usd: "+$28,420", date: "Mar 8, 2026", status: "complete", icon: "↓" },
-  { id: "tx4", type: "Forensics Fee", asset: "USD", amount: "-$12,400", usd: "-$12,400", date: "Mar 9, 2026", status: "complete", icon: "↑" },
-  { id: "tx5", type: "Yield Interest", asset: "USDC", amount: "+142 USDC", usd: "+$142", date: "Mar 10, 2026", status: "pending", icon: "↓" },
-];
+import { getDashboard, type DashboardData, type Asset, type Transaction } from "@/lib/api";
 
 function AnimatedNumber({ value, prefix = "", suffix = "", decimals = 0 }: { value: number; prefix?: string; suffix?: string; decimals?: number }) {
   const [display, setDisplay] = useState(0);
@@ -36,8 +22,27 @@ function AnimatedNumber({ value, prefix = "", suffix = "", decimals = 0 }: { val
 }
 
 export default function DashboardPage() {
-  const total = ASSETS.reduce((a, b) => a + b.usd, 0);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [hoveredAsset, setHoveredAsset] = useState<string | null>(null);
+
+  useEffect(() => {
+    getDashboard().then(setData).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <span className="h-8 w-8 border-2 rounded-full animate-spin" style={{ borderColor: "var(--accent-teal)", borderTopColor: "transparent" }}/>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return <div className="text-center text-white/40 py-16">Failed to load dashboard.</div>;
+  }
+
+  const { user, totalUsd: total, recoveredUsd, recoveryRate, recoveryComplete, assets, recentTransactions } = data;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -46,7 +51,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <p className="text-xs tracking-widest text-white/30 mb-1" style={{ fontFamily: "var(--font-mono)" }}>GOOD MORNING</p>
-          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Alexander Chen</h1>
+          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>{user.name}</h1>
         </div>
         <div className="flex gap-2">
           <Link href="/banking/transfer" className="px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 hover:-translate-y-px"
@@ -75,18 +80,18 @@ export default function DashboardPage() {
               $<AnimatedNumber value={total} decimals={2}/>
             </div>
             <div className="flex items-center gap-2">
-              <span className="badge badge-success">↑ +$283,800 RECOVERED</span>
+              <span className="badge badge-success">↑ +${recoveredUsd.toLocaleString()} RECOVERED</span>
               <span className="text-xs text-white/35">All time</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 text-right">
             <div>
               <p className="text-xs text-white/35 mb-1" style={{ fontFamily: "var(--font-mono)" }}>RECOVERY RATE</p>
-              <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--accent-emerald)" }}>96.2%</p>
+              <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--accent-emerald)" }}>{recoveryRate}%</p>
             </div>
             <div>
               <p className="text-xs text-white/35 mb-1" style={{ fontFamily: "var(--font-mono)" }}>CASE #</p>
-              <p className="text-base font-bold text-white" style={{ fontFamily: "var(--font-mono)" }}>SF-2024-0847</p>
+              <p className="text-base font-bold text-white" style={{ fontFamily: "var(--font-mono)" }}>{user.caseId}</p>
             </div>
           </div>
         </div>
@@ -94,7 +99,7 @@ export default function DashboardPage() {
         {/* Mini allocation bar */}
         <div className="mt-6">
           <div className="flex rounded-full overflow-hidden h-2 gap-0.5">
-            {ASSETS.map((a) => (
+            {assets.map((a) => (
               <div key={a.symbol} className="transition-all duration-300 rounded-full cursor-pointer"
                 style={{ flex: a.usd / total, background: a.color, opacity: hoveredAsset && hoveredAsset !== a.symbol ? 0.3 : 1 }}
                 onMouseEnter={() => setHoveredAsset(a.symbol)}
@@ -102,7 +107,7 @@ export default function DashboardPage() {
             ))}
           </div>
           <div className="flex gap-4 mt-2.5 flex-wrap">
-            {ASSETS.map((a) => (
+            {assets.map((a) => (
               <div key={a.symbol} className="flex items-center gap-1.5 cursor-pointer transition-opacity"
                 style={{ opacity: hoveredAsset && hoveredAsset !== a.symbol ? 0.35 : 1 }}
                 onMouseEnter={() => setHoveredAsset(a.symbol)}
@@ -118,7 +123,7 @@ export default function DashboardPage() {
 
       {/* Assets grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {ASSETS.map((asset, i) => (
+        {assets.map((asset, i) => (
           <div key={asset.symbol} className={`glass-card rounded-2xl p-4 animate-fade-in delay-${i + 1} hover-lift cursor-default`}>
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -151,7 +156,7 @@ export default function DashboardPage() {
           <h2 className="text-sm font-semibold text-white/70 tracking-wide">Quick Actions</h2>
           {[
             { label: "Transfer Funds", desc: "Move to bank or wallet", href: "/banking/transfer", color: "var(--gold-400)", icon: "→" },
-            { label: "View Recovery Status", desc: "Case SF-2024-0847", href: "/banking/recovery-status", color: "var(--accent-emerald)", icon: "✓" },
+            { label: "View Recovery Status", desc: `Case ${user.caseId}`, href: "/banking/recovery-status", color: "var(--accent-emerald)", icon: "✓" },
             { label: "Manage Cards", desc: "Virtual debit cards", href: "/banking/cards", color: "var(--accent-violet)", icon: "▪" },
             { label: "Download Statement", desc: "Export PDF report", href: "#", color: "var(--accent-teal)", icon: "↓" },
           ].map((action) => (
@@ -183,7 +188,7 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="space-y-1">
-            {RECENT_TX.map((tx) => (
+            {recentTransactions.map((tx) => (
               <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-default"
                 style={{ borderRadius: "12px" }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = "var(--glass-1)"; }}
@@ -229,7 +234,7 @@ export default function DashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">Recovery Complete — Case #SF-2024-0847</p>
+            <p className="text-sm font-semibold text-white">Recovery Complete — Case #{user.caseId}</p>
             <p className="text-xs text-white/45 mt-0.5">All recovered assets have been credited to your portal. Forensic report available for download.</p>
           </div>
         </div>

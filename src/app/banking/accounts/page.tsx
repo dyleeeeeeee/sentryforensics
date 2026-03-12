@@ -1,33 +1,29 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-
-const ACCOUNTS = [
-  {
-    id: "acc1", name: "Recovery Vault", type: "Recovery Account", status: "active",
-    balance: 295800, assets: [
-      { symbol: "BTC", amount: 3.42, usd: 207842, color: "#f59e0b" },
-      { symbol: "ETH", amount: 15.8, usd: 47556, color: "#9d6fff" },
-      { symbol: "USDC", amount: 28420, usd: 28420, color: "#00d4ff" },
-      { symbol: "SOL", amount: 92.4, usd: 11982, color: "#00f0a0" },
-    ],
-    opened: "Mar 8, 2026", case: "SF-2024-0847",
-  },
-  {
-    id: "acc2", name: "Yield Account", type: "Interest-Bearing", status: "active",
-    balance: 5142, assets: [{ symbol: "USDC", amount: 5142, usd: 5142, color: "#00d4ff" }],
-    opened: "Mar 10, 2026", case: "—",
-  },
-];
-
-const LINKED_BANKS = [
-  { id: "b1", name: "Chase Bank", number: "••••3847", type: "Checking", verified: true, country: "🇺🇸" },
-  { id: "b2", name: "Barclays", number: "••••9921", type: "Current Account", verified: true, country: "🇬🇧" },
-];
+import { getAccounts, type AccountData, type LinkedBank } from "@/lib/api";
 
 export default function AccountsPage() {
-  const [activeAcct, setActiveAcct] = useState(ACCOUNTS[0].id);
-  const selected = ACCOUNTS.find(a => a.id === activeAcct)!;
+  const [accounts, setAccounts] = useState<AccountData[]>([]);
+  const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
+  const [activeAcct, setActiveAcct] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAccounts().then(d => {
+      setAccounts(d.accounts);
+      setLinkedBanks(d.linkedBanks);
+      if (d.accounts.length > 0) setActiveAcct(d.accounts[0].id);
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <span className="h-8 w-8 border-2 rounded-full animate-spin" style={{ borderColor: "var(--accent-teal)", borderTopColor: "transparent" }}/>
+    </div>
+  );
+
+  const selected = accounts.find(a => a.id === activeAcct) ?? accounts[0];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -38,7 +34,7 @@ export default function AccountsPage() {
 
       {/* Account cards */}
       <div className="grid sm:grid-cols-2 gap-4">
-        {ACCOUNTS.map(acct => (
+        {accounts.map(acct => (
           <button key={acct.id} onClick={() => setActiveAcct(acct.id)}
             className="text-left p-5 rounded-2xl transition-all hover:-translate-y-0.5"
             style={{
@@ -125,7 +121,7 @@ export default function AccountsPage() {
           </button>
         </div>
         <div className="divide-y" style={{ borderColor: "var(--glass-border)" }}>
-          {LINKED_BANKS.map(bank => (
+          {linkedBanks.map(bank => (
             <div key={bank.id} className="flex items-center gap-4 px-6 py-4">
               <span className="text-2xl">{bank.country}</span>
               <div className="flex-1">

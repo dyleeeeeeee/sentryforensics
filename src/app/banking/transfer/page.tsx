@@ -1,17 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getDashboard, submitTransfer, type Asset } from "@/lib/api";
 
 type Step = "select" | "amount" | "review" | "confirm" | "done";
 
-const ASSETS = [
-  { symbol: "BTC", name: "Bitcoin", available: 3.42, usdRate: 60772, color: "#f59e0b", icon: "₿" },
-  { symbol: "ETH", name: "Ethereum", available: 15.8, usdRate: 3010, color: "#9d6fff", icon: "Ξ" },
-  { symbol: "USDC", name: "USD Coin", available: 28420, usdRate: 1, color: "#00d4ff", icon: "$" },
-  { symbol: "SOL", name: "Solana", available: 92.4, usdRate: 130, color: "#00f0a0", icon: "◎" },
-];
+type Destination = { id: string; type: string; label: string; flag: string };
 
-const DESTINATIONS = [
+const DESTINATIONS: Destination[] = [
   { id: "bank1", type: "bank", label: "Chase Bank ••••3847", flag: "🏦" },
   { id: "bank2", type: "bank", label: "Barclays ••••9921", flag: "🏦" },
   { id: "wallet1", type: "wallet", label: "Ledger Wallet (BTC)", flag: "🔐" },
@@ -20,22 +16,47 @@ const DESTINATIONS = [
 
 export default function TransferPage() {
   const [step, setStep] = useState<Step>("select");
-  const [selectedAsset, setSelectedAsset] = useState(ASSETS[2]);
-  const [destination, setDestination] = useState(DESTINATIONS[0]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [destination, setDestination] = useState<Destination>(DESTINATIONS[0]);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [txRef, setTxRef] = useState("");
 
-  const usdAmount = parseFloat(amount || "0") * selectedAsset.usdRate;
+  useEffect(() => {
+    getDashboard().then(d => {
+      setAssets(d.assets);
+      if (d.assets.length > 0) setSelectedAsset(d.assets.find(a => a.symbol === "USDC") ?? d.assets[0]);
+    }).catch(console.error);
+  }, []);
+
+  const usdAmount = parseFloat(amount || "0") * (selectedAsset?.usdRate ?? 1);
   const fee = usdAmount * 0.005;
   const receive = usdAmount - fee;
 
   const steps: Step[] = ["select", "amount", "review", "confirm", "done"];
   const stepIdx = steps.indexOf(step);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === "review") {
+      if (!selectedAsset) return;
       setLoading(true);
-      setTimeout(() => { setLoading(false); setStep("done"); }, 2000);
+      setError("");
+      try {
+        const result = await submitTransfer({
+          asset: selectedAsset.symbol,
+          amount: parseFloat(amount),
+          destinationId: destination.id,
+          destinationLabel: destination.label,
+        });
+        setTxRef(result.ref);
+        setStep("done");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Transfer failed");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
     const next = steps[stepIdx + 1];
@@ -79,24 +100,24 @@ export default function TransferPage() {
             <div>
               <p className="text-xs font-semibold text-white/40 mb-3 tracking-wide" style={{ fontFamily: "var(--font-mono)" }}>SELECT ASSET TO TRANSFER</p>
               <div className="space-y-2">
-                {ASSETS.map(a => (
+                {assets.map(a => (
                   <button key={a.symbol} onClick={() => setSelectedAsset(a)}
                     className="w-full flex items-center gap-3 p-4 rounded-xl text-left transition-all"
                     style={{
-                      background: selectedAsset.symbol === a.symbol ? `${a.color}12` : "var(--glass-1)",
-                      border: `1px solid ${selectedAsset.symbol === a.symbol ? `${a.color}30` : "var(--glass-border)"}`,
+                      background: selectedAsset?.symbol === a.symbol ? `${a.color}12` : "var(--glass-1)",
+                      border: `1px solid ${selectedAsset?.symbol === a.symbol ? `${a.color}30` : "var(--glass-border)"}`,
                     }}>
                     <span className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0"
                       style={{ background: `${a.color}18`, color: a.color, fontFamily: "var(--font-mono)" }}>{a.icon}</span>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-white">{a.name}</p>
-                      <p className="text-xs text-white/40">{a.available} {a.symbol} available</p>
+                      <p className="text-xs text-white/40">{a.amount} {a.symbol} available</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-white">${(a.available * a.usdRate).toLocaleString()}</p>
+                      <p className="text-sm font-semibold text-white">${(a.amount * a.usdRate).toLocaleString()}</p>
                       <p className="text-xs text-white/35">≈ USD</p>
                     </div>
-                    {selectedAsset.symbol === a.symbol && (
+                    {selectedAsset?.symbol === a.symbol && (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-teal)" strokeWidth="2.5" strokeLinecap="round">
                         <polyline points="20,6 9,17 4,12"/>
                       </svg>

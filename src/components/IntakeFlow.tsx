@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/Button";
+import { submitIntake } from "@/lib/api";
 
 type StepId = "safety" | "contact" | "incident" | "evidence" | "review" | "done";
 
@@ -49,6 +50,9 @@ export function IntakeFlow() {
   const [step, setStep] = useState<StepId>("safety");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState<FormState>(initialState);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [caseId, setCaseId] = useState("");
 
   const steps = useMemo(
     () =>
@@ -142,7 +146,29 @@ export function IntakeFlow() {
     if (step === "review") {
       markTouched(["fullName", "email", "narrative", "consent"]);
       if (!canGoNext) return;
-      setStep("done");
+      setSubmitting(true);
+      setSubmitError("");
+      submitIntake({
+        fullName: form.fullName,
+        email: form.email,
+        contactChannel: form.contactChannel,
+        incidentType: form.incidentType,
+        incidentDate: form.incidentDate,
+        narrative: form.narrative,
+        publicAddresses: form.publicAddresses,
+        txids: form.txids,
+        exchangeTicketIds: form.exchangeTicketIds,
+        lossEstimate: form.lossEstimate,
+        consent: form.consent,
+        honeypot: form.honeypot,
+      }).then((res) => {
+        setCaseId(res.caseId);
+        setStep("done");
+      }).catch((err: Error) => {
+        setSubmitError(err.message ?? "Submission failed. Please try again.");
+      }).finally(() => {
+        setSubmitting(false);
+      });
     }
   }
 
@@ -454,9 +480,9 @@ export function IntakeFlow() {
             <Button type="button" variant="secondary" onClick={copySummary}>
               Copy summary
             </Button>
-            <p className="text-xs text-white/55">
-              UI-only mode: no network request will be made.
-            </p>
+            {submitError && (
+              <p className="text-xs font-medium text-red-300">{submitError}</p>
+            )}
           </div>
         </div>
       ) : null}
@@ -464,10 +490,12 @@ export function IntakeFlow() {
       {step === "done" ? (
         <div className="grid gap-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm font-semibold text-white">Intake completed</p>
+            <p className="text-sm font-semibold text-white">Intake submitted</p>
+            {caseId && (
+              <p className="mt-1 text-xs font-mono text-white/50">Case ID: {caseId}</p>
+            )}
             <p className="mt-2 text-sm leading-6 text-white/70">
-              This is a confirmation screen for the workflow. When you’re ready, we can enable
-              secure Telegram submission via a server-side endpoint.
+              Your intake has been securely received. A member of our forensics team will review your case and contact you via your preferred channel.
             </p>
           </div>
 
@@ -500,8 +528,8 @@ export function IntakeFlow() {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="primary" onClick={goNext} disabled={!canGoNext}>
-              {step === "review" ? "Finish" : "Continue"}
+            <Button type="button" variant="primary" onClick={goNext} disabled={!canGoNext || submitting}>
+              {step === "review" ? (submitting ? "Submitting…" : "Submit") : "Continue"}
             </Button>
             {step === "review" ? (
               <Button type="button" variant="ghost" onClick={() => window.open('https://t.me/sentry-support', '_blank')}>

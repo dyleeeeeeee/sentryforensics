@@ -1,15 +1,51 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { login, verifyOTP, saveSession } from "@/lib/api";
 
 export default function BankingLoginPage() {
+  const router = useRouter();
   const [step, setStep] = useState<"login" | "verify">("login");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [identifier, setIdentifier] = useState("SF-2024-0847");
+  const [password, setPassword] = useState("password");
+  const [pendingToken, setPendingToken] = useState("");
+  const [maskedPhone, setMaskedPhone] = useState("");
+  const [otpHint, setOtpHint] = useState("");
   const [pin, setPin] = useState(["", "", "", "", "", ""]);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoading(true);
-    setTimeout(() => { setLoading(false); setStep("verify"); }, 1200);
+    setError("");
+    try {
+      const result = await login(identifier, password);
+      setPendingToken(result.pendingToken);
+      setMaskedPhone(result.maskedPhone);
+      if (result.otpHint) setOtpHint(result.otpHint);
+      setStep("verify");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    const otp = pin.join("");
+    if (otp.length < 6) { setError("Enter the 6-digit code"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const result = await verifyOTP(pendingToken, otp);
+      saveSession(result.token, result.user);
+      router.push("/banking/dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Verification failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,15 +91,16 @@ export default function BankingLoginPage() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-white/50 mb-1.5">Case ID / Email</label>
-                  <input className="sf-input" placeholder="SF-2024-0847 or email@example.com" defaultValue="SF-2024-0847"/>
+                  <input className="sf-input" placeholder="SF-2024-0847 or email@example.com" value={identifier} onChange={e => setIdentifier(e.target.value)}/>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
-                  <input type="password" className="sf-input" placeholder="••••••••" defaultValue="password"/>
+                  <input type="password" className="sf-input" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)}/>
                 </div>
               </div>
             </div>
 
+            {error && <p className="mb-3 text-xs text-red-400 text-center">{error}</p>}
             <button onClick={handleLogin} disabled={loading}
               className="w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2"
               style={{ background: loading ? "var(--glass-2)" : "linear-gradient(135deg, #f59e0b, #fcd34d)", color: loading ? "var(--fg-tertiary)" : "#1a0f00" }}>
@@ -99,8 +136,10 @@ export default function BankingLoginPage() {
                 </svg>
               </div>
               <p className="text-sm font-semibold text-white">Two-Factor Verification</p>
-              <p className="text-xs text-white/40 mt-1">Enter the 6-digit code sent to +44•••••7823</p>
+              <p className="text-xs text-white/40 mt-1">Enter the 6-digit code sent to {maskedPhone || "+44••••7823"}</p>
+              {otpHint && <p className="text-xs mt-1" style={{color:"var(--accent-teal)"}}>Demo OTP: <span style={{fontFamily:"var(--font-mono)"}}>{otpHint}</span></p>}
             </div>
+            {error && <p className="mb-3 text-xs text-red-400 text-center">{error}</p>}
             <div className="flex gap-2 justify-center mb-5">
               {pin.map((v, i) => (
                 <input key={i} type="text" maxLength={1} value={v}
@@ -109,12 +148,11 @@ export default function BankingLoginPage() {
                   style={{ background: v ? "rgba(0,212,255,0.1)" : "var(--glass-1)", border: v ? "1px solid rgba(0,212,255,0.3)" : "1px solid var(--glass-border)", color: "var(--fg-primary)", fontFamily: "var(--font-mono)" }}/>
               ))}
             </div>
-            <Link href="/banking/dashboard">
-              <button className="w-full py-3 rounded-xl font-semibold text-sm"
-                style={{ background: "linear-gradient(135deg, #f59e0b, #fcd34d)", color: "#1a0f00" }}>
-                Verify & Enter Portal
-              </button>
-            </Link>
+            <button onClick={handleVerify} disabled={loading}
+              className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+              style={{ background: loading ? "var(--glass-2)" : "linear-gradient(135deg, #f59e0b, #fcd34d)", color: loading ? "var(--fg-tertiary)" : "#1a0f00" }}>
+              {loading ? (<><span className="h-4 w-4 border-2 rounded-full animate-spin" style={{borderColor:"var(--fg-tertiary)",borderTopColor:"transparent"}}/>Verifying...</>) : "Verify & Enter Portal"}
+            </button>
             <p className="text-center text-xs text-white/30 mt-3">
               Didn&apos;t receive code?{" "}
               <button className="text-white/55 hover:text-white transition-colors">Resend</button>
