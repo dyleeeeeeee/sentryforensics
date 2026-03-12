@@ -16,6 +16,7 @@ export interface User {
   recoveryRate: number;
   recoveryComplete: boolean;
   clientSince: string;
+  blocked?: boolean;
 }
 
 export interface Session {

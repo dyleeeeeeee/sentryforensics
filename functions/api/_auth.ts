@@ -16,8 +16,13 @@ export async function handleAuth(
     if (!identifier || !password)
       return cors(json({ error: "Missing credentials" }, 400));
 
-    const usersRaw = await env.SENTRY_KV.get("users");
-    const users: User[] = usersRaw ? JSON.parse(usersRaw) : defaultUsers();
+    let usersRaw = await env.SENTRY_KV.get("users");
+    if (!usersRaw) {
+      const seeded = defaultUsers();
+      await env.SENTRY_KV.put("users", JSON.stringify(seeded));
+      usersRaw = JSON.stringify(seeded);
+    }
+    const users: User[] = JSON.parse(usersRaw);
 
     const user = users.find(
       (u) =>
@@ -26,6 +31,7 @@ export async function handleAuth(
         u.password === password
     );
     if (!user) return cors(json({ error: "Invalid credentials" }, 401));
+    if (user.blocked) return cors(json({ error: "Account suspended. Contact support." }, 403));
 
     const pendingToken = crypto.randomUUID();
     const otp = generateOTP();
