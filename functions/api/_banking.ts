@@ -1,11 +1,6 @@
 import type { Env, User, Asset, Transaction, Card } from "./_types";
 import { json, cors, initials } from "./_utils";
-import {
-  defaultAccounts,
-  defaultLinkedBanks,
-  defaultCards,
-  defaultProfileSettings,
-} from "./_defaults";
+import { defaultProfileSettings } from "./_defaults";
 import { getUserAssets, getUserTransactions } from "./_session";
 
 export async function handleBanking(
@@ -121,16 +116,16 @@ export async function handleBanking(
   // GET /api/banking/accounts
   if (sub === "accounts" && request.method === "GET") {
     const accountsRaw = await env.SENTRY_KV.get(`accounts:${user.id}`);
-    const accounts = accountsRaw ? JSON.parse(accountsRaw) : defaultAccounts();
+    const accounts = accountsRaw ? JSON.parse(accountsRaw) : [];
     const banksRaw = await env.SENTRY_KV.get(`linkedbanks:${user.id}`);
-    const linkedBanks = banksRaw ? JSON.parse(banksRaw) : defaultLinkedBanks();
+    const linkedBanks = banksRaw ? JSON.parse(banksRaw) : [];
     return cors(json({ accounts, linkedBanks }));
   }
 
   // GET /api/banking/cards
   if (sub === "cards" && request.method === "GET") {
     const cardsRaw = await env.SENTRY_KV.get(`cards:${user.id}`);
-    const cards: Card[] = cardsRaw ? JSON.parse(cardsRaw) : defaultCards();
+    const cards: Card[] = cardsRaw ? JSON.parse(cardsRaw) : [];
     return cors(json({ cards }));
   }
 
@@ -138,7 +133,7 @@ export async function handleBanking(
   if (sub === "cards" && segments[3] === "freeze" && request.method === "POST") {
     const cardId = segments[2];
     const cardsRaw = await env.SENTRY_KV.get(`cards:${user.id}`);
-    const cards: Card[] = cardsRaw ? JSON.parse(cardsRaw) : defaultCards();
+    const cards: Card[] = cardsRaw ? JSON.parse(cardsRaw) : [];
     const updated = cards.map((c) =>
       c.id === cardId ? { ...c, frozen: !c.frozen } : c
     );
