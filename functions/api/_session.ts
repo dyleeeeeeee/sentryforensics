@@ -1,6 +1,6 @@
 import type { Env, User, Session } from "./_types";
 import { extractToken } from "./_utils";
-import { defaultUsers } from "./_defaults";
+import { defaultUsers } from "./_defaults"; // still used for requireAuth fallback
 
 export async function requireAuth(request: Request, env: Env): Promise<User | null> {
   const token = extractToken(request);
@@ -17,14 +17,10 @@ export async function requireAuth(request: Request, env: Env): Promise<User | nu
 
 export async function getUserAssets(user: User, env: Env) {
   const raw = await env.SENTRY_KV.get(`assets:${user.id}`);
-  if (raw) return JSON.parse(raw);
-  const { defaultAssets } = await import("./_defaults");
-  return defaultAssets();
+  return raw ? JSON.parse(raw) : [];
 }
 
 export async function getUserTransactions(user: User, env: Env) {
   const raw = await env.SENTRY_KV.get(`transactions:${user.id}`);
-  if (raw) return JSON.parse(raw);
-  const { defaultTransactions } = await import("./_defaults");
-  return defaultTransactions();
+  return raw ? JSON.parse(raw) : [];
 }
