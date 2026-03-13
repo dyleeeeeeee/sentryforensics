@@ -155,7 +155,7 @@ export default function TransferPage() {
           </div>
         )}
 
-        {step === "amount" && (
+        {step === "amount" && selectedAsset && (
           <div className="space-y-5">
             <div>
               <p className="text-xs font-semibold text-white/40 mb-3 tracking-wide" style={{ fontFamily: "var(--font-mono)" }}>ENTER AMOUNT</p>
@@ -170,14 +170,14 @@ export default function TransferPage() {
               </div>
               <div className="flex justify-between mt-2 text-xs text-white/35">
                 <span>≈ ${usdAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
-                <button onClick={() => setAmount(String(selectedAsset.available))} className="text-white/55 hover:text-white transition-colors">
-                  Max: {selectedAsset.available} {selectedAsset.symbol}
+                <button onClick={() => setAmount(String(selectedAsset.amount))} className="text-white/55 hover:text-white transition-colors">
+                  Max: {selectedAsset.amount} {selectedAsset.symbol}
                 </button>
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2">
               {[25, 50, 75, 100].map(pct => (
-                <button key={pct} onClick={() => setAmount(String((selectedAsset.available * pct) / 100))}
+                <button key={pct} onClick={() => setAmount(String((selectedAsset.amount * pct) / 100))}
                   className="py-2 rounded-lg text-xs font-semibold transition-all"
                   style={{ background: "var(--glass-1)", border: "1px solid var(--glass-border)", color: "var(--fg-secondary)", fontFamily: "var(--font-mono)" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "var(--glass-2)")}
@@ -200,7 +200,7 @@ export default function TransferPage() {
           </div>
         )}
 
-        {step === "review" && (
+        {step === "review" && selectedAsset && (
           <div className="space-y-4">
             <p className="text-xs font-semibold text-white/40 mb-3 tracking-wide" style={{ fontFamily: "var(--font-mono)" }}>REVIEW TRANSFER</p>
             <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--glass-border)" }}>
