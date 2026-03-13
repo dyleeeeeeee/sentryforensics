@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { getStoredUser, type StoredUser } from "@/lib/api";
 
-function BankingLayoutInner({ children }: { children: React.ReactNode }) {
+export default function BankingLayoutInner({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<StoredUser | null>(null);
   useEffect(() => { setUser(getStoredUser()); }, []);
   const initials = user?.name ? user.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase() : "";
