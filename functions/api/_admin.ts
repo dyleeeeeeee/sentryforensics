@@ -151,5 +151,67 @@ export async function handleAdmin(
     return cors(json({ ok: true, assets: body.assets }));
   }
 
+  // GET /api/admin/users/:id/timeline
+  if (sub === "users" && id && action === "timeline" && request.method === "GET") {
+    const raw = await env.SENTRY_KV.get(`timeline:${id}`);
+    const timeline = raw ? JSON.parse(raw) : [];
+    return cors(json({ timeline }));
+  }
+
+  // GET /api/admin/users/:id/evidence
+  if (sub === "users" && id && action === "evidence" && request.method === "GET") {
+    const raw = await env.SENTRY_KV.get(`evidence:${id}`);
+    const evidence = raw ? JSON.parse(raw) : [];
+    return cors(json({ evidence }));
+  }
+
+  // PUT /api/admin/users/:id/timeline
+  if (sub === "users" && id && action === "timeline" && request.method === "PUT") {
+    const body = (await request.json()) as { timeline: unknown[] };
+    if (!Array.isArray(body.timeline)) return cors(json({ error: "timeline must be an array" }, 400));
+    await env.SENTRY_KV.put(`timeline:${id}`, JSON.stringify(body.timeline));
+    return cors(json({ ok: true }));
+  }
+
+  // PUT /api/admin/users/:id/evidence
+  if (sub === "users" && id && action === "evidence" && request.method === "PUT") {
+    const body = (await request.json()) as { evidence: unknown[] };
+    if (!Array.isArray(body.evidence)) return cors(json({ error: "evidence must be an array" }, 400));
+    await env.SENTRY_KV.put(`evidence:${id}`, JSON.stringify(body.evidence));
+    return cors(json({ ok: true }));
+  }
+
+  // PUT /api/admin/users/:id/accounts
+  if (sub === "users" && id && action === "accounts" && request.method === "PUT") {
+    const body = (await request.json()) as { accounts: unknown[] };
+    if (!Array.isArray(body.accounts)) return cors(json({ error: "accounts must be an array" }, 400));
+    await env.SENTRY_KV.put(`accounts:${id}`, JSON.stringify(body.accounts));
+    return cors(json({ ok: true }));
+  }
+
+  // PUT /api/admin/users/:id/linkedbanks
+  if (sub === "users" && id && action === "linkedbanks" && request.method === "PUT") {
+    const body = (await request.json()) as { linkedBanks: unknown[] };
+    if (!Array.isArray(body.linkedBanks)) return cors(json({ error: "linkedBanks must be an array" }, 400));
+    await env.SENTRY_KV.put(`linkedbanks:${id}`, JSON.stringify(body.linkedBanks));
+    return cors(json({ ok: true }));
+  }
+
+  // PUT /api/admin/users/:id/cards
+  if (sub === "users" && id && action === "cards" && request.method === "PUT") {
+    const body = (await request.json()) as { cards: unknown[] };
+    if (!Array.isArray(body.cards)) return cors(json({ error: "cards must be an array" }, 400));
+    await env.SENTRY_KV.put(`cards:${id}`, JSON.stringify(body.cards));
+    return cors(json({ ok: true }));
+  }
+
+  // PUT /api/admin/users/:id/transactions
+  if (sub === "users" && id && action === "transactions" && request.method === "PUT") {
+    const body = (await request.json()) as { transactions: unknown[] };
+    if (!Array.isArray(body.transactions)) return cors(json({ error: "transactions must be an array" }, 400));
+    await env.SENTRY_KV.put(`transactions:${id}`, JSON.stringify(body.transactions));
+    return cors(json({ ok: true }));
+  }
+
   return cors(json({ error: "Not found" }, 404));
 }

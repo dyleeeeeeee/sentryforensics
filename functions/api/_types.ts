@@ -17,6 +17,11 @@ export interface User {
   recoveryComplete: boolean;
   clientSince: string;
   blocked?: boolean;
+  openedDate?: string;
+  closedDate?: string;
+  originalClaim?: number;
+  recoveryDays?: number;
+  networksTraced?: number;
 }
 
 export interface Session {

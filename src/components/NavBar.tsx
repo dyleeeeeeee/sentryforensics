@@ -77,9 +77,6 @@ export function NavBar() {
 
           {/* CTAs */}
           <div className="flex items-center gap-2">
-            <ButtonLink href="/banking" variant="secondary" className="hidden sm:inline-flex">
-              Client Portal
-            </ButtonLink>
             <ButtonLink href="/recover-wallet" variant="primary">
               Start Intake
             </ButtonLink>

@@ -1,13 +1,9 @@
 import type { Env, User, Asset, Transaction, Card } from "./_types";
 import { json, cors, initials } from "./_utils";
 import {
-  defaultAssets,
-  defaultTransactions,
   defaultAccounts,
   defaultLinkedBanks,
   defaultCards,
-  defaultTimeline,
-  defaultEvidence,
   defaultProfileSettings,
 } from "./_defaults";
 import { getUserAssets, getUserTransactions } from "./_session";
@@ -153,9 +149,9 @@ export async function handleBanking(
   // GET /api/banking/recovery-status
   if (sub === "recovery-status" && request.method === "GET") {
     const timelineRaw = await env.SENTRY_KV.get(`timeline:${user.id}`);
-    const timeline = timelineRaw ? JSON.parse(timelineRaw) : defaultTimeline();
+    const timeline = timelineRaw ? JSON.parse(timelineRaw) : [];
     const evidenceRaw = await env.SENTRY_KV.get(`evidence:${user.id}`);
-    const evidence = evidenceRaw ? JSON.parse(evidenceRaw) : defaultEvidence();
+    const evidence = evidenceRaw ? JSON.parse(evidenceRaw) : [];
     return cors(
       json({
         caseId: user.caseId,
@@ -163,11 +159,11 @@ export async function handleBanking(
         recoveredUsd: user.recoveredUsd,
         recoveryRate: user.recoveryRate,
         recoveryComplete: user.recoveryComplete,
-        openedDate: "Feb 3, 2026",
-        closedDate: user.recoveryComplete ? "Mar 8, 2026" : undefined,
-        originalClaim: 307440,
-        recoveryDays: 33,
-        networksTraced: 3,
+        openedDate: user.openedDate ?? user.clientSince,
+        closedDate: user.closedDate ?? undefined,
+        originalClaim: user.originalClaim ?? 0,
+        recoveryDays: user.recoveryDays ?? 0,
+        networksTraced: user.networksTraced ?? 0,
         timeline,
         evidence,
       })

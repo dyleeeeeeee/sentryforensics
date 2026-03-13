@@ -6,6 +6,18 @@ import {
   type SFUser, type AdminAsset,
 } from "@/lib/api";
 
+const BASE = "/api";
+function authHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("sf_token") : null;
+  const h: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) h["Authorization"] = `Bearer ${token}`;
+  return h;
+}
+async function adminPut(path: string, body: unknown) {
+  const res = await fetch(`${BASE}${path}`, { method: "PUT", headers: authHeaders(), body: JSON.stringify(body) });
+  if (!res.ok) { const d = await res.json(); throw new Error((d as {error?:string}).error ?? "Failed"); }
+}
+
 const ASSET_PRESETS = [
   { symbol: "BTC", name: "Bitcoin", usdRate: 60772, change: 2.34, color: "#f59e0b", icon: "₿" },
   { symbol: "ETH", name: "Ethereum", usdRate: 3010, change: -0.87, color: "#9d6fff", icon: "Ξ" },
@@ -16,7 +28,10 @@ const ASSET_PRESETS = [
 
 const BLANK_FORM = { name: "", email: "", password: "", caseId: "", maskedPhone: "", role: "client" as "client" | "admin", recoveredUsd: "", recoveryRate: "", recoveryComplete: false };
 
-type EditMode = "profile" | "assets";
+type EditMode = "profile" | "assets" | "recovery";
+
+interface TimelineEvent { date: string; time: string; event: string; detail: string; status: "done" | "active" | "pending"; icon: string; }
+interface EvidenceFile { name: string; type: string; size: string; date: string; }
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<SFUser[]>([]);
@@ -31,9 +46,11 @@ export default function AdminUsersPage() {
   // Edit drawer
   const [editUser, setEditUser] = useState<SFUser | null>(null);
   const [editMode, setEditMode] = useState<EditMode>("profile");
-  const [editForm, setEditForm] = useState({ name: "", email: "", password: "", maskedPhone: "", role: "client" as "client" | "admin", recoveredUsd: "", recoveryRate: "", recoveryComplete: false });
+  const [editForm, setEditForm] = useState({ name: "", email: "", password: "", maskedPhone: "", role: "client" as "client" | "admin", recoveredUsd: "", recoveryRate: "", recoveryComplete: false, openedDate: "", closedDate: "", originalClaim: "", recoveryDays: "", networksTraced: "" });
   const [assets, setAssets] = useState<AdminAsset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceFile[]>([]);
 
   const refresh = useCallback(() => {
     getAdminUsers().then((d) => setUsers(d.users)).catch(console.error).finally(() => setLoading(false));
@@ -44,12 +61,18 @@ export default function AdminUsersPage() {
   const openEdit = async (u: SFUser) => {
     setEditUser(u);
     setEditMode("profile");
-    setEditForm({ name: u.name, email: u.email, password: "", maskedPhone: u.maskedPhone ?? "", role: u.role, recoveredUsd: String(u.recoveredUsd), recoveryRate: String(u.recoveryRate), recoveryComplete: u.recoveryComplete });
+    setEditForm({ name: u.name, email: u.email, password: "", maskedPhone: u.maskedPhone ?? "", role: u.role, recoveredUsd: String(u.recoveredUsd), recoveryRate: String(u.recoveryRate), recoveryComplete: u.recoveryComplete, openedDate: (u as unknown as Record<string,string>).openedDate ?? "", closedDate: (u as unknown as Record<string,string>).closedDate ?? "", originalClaim: String((u as unknown as Record<string,number>).originalClaim ?? ""), recoveryDays: String((u as unknown as Record<string,number>).recoveryDays ?? ""), networksTraced: String((u as unknown as Record<string,number>).networksTraced ?? "") });
     setAssetsLoading(true);
     try {
-      const res = await getAdminUserAssets(u.id);
-      setAssets(res.assets);
-    } catch { setAssets([]); }
+      const [assetsRes, tlRaw, evRaw] = await Promise.all([
+        getAdminUserAssets(u.id),
+        fetch(`/api/admin/users/${u.id}/timeline`, { headers: authHeaders() }).then(r => r.ok ? r.json() : { timeline: [] }).catch(() => ({ timeline: [] })),
+        fetch(`/api/admin/users/${u.id}/evidence`, { headers: authHeaders() }).then(r => r.ok ? r.json() : { evidence: [] }).catch(() => ({ evidence: [] })),
+      ]);
+      setAssets(assetsRes.assets);
+      setTimeline((tlRaw as {timeline: TimelineEvent[]}).timeline ?? []);
+      setEvidence((evRaw as {evidence: EvidenceFile[]}).evidence ?? []);
+    } catch { setAssets([]); setTimeline([]); setEvidence([]); }
     finally { setAssetsLoading(false); }
   };
 
@@ -70,7 +93,7 @@ export default function AdminUsersPage() {
     if (!editUser) return;
     setError(""); setSaving(true);
     try {
-      const patch: Record<string, unknown> = { name: editForm.name, email: editForm.email, maskedPhone: editForm.maskedPhone, role: editForm.role, recoveredUsd: Number(editForm.recoveredUsd) || 0, recoveryRate: Number(editForm.recoveryRate) || 0, recoveryComplete: editForm.recoveryComplete };
+      const patch: Record<string, unknown> = { name: editForm.name, email: editForm.email, maskedPhone: editForm.maskedPhone, role: editForm.role, recoveredUsd: Number(editForm.recoveredUsd) || 0, recoveryRate: Number(editForm.recoveryRate) || 0, recoveryComplete: editForm.recoveryComplete, openedDate: editForm.openedDate || undefined, closedDate: editForm.closedDate || undefined, originalClaim: Number(editForm.originalClaim) || 0, recoveryDays: Number(editForm.recoveryDays) || 0, networksTraced: Number(editForm.networksTraced) || 0 };
       if (editForm.password) patch.password = editForm.password;
       await updateAdminUser(editUser.id, patch as Parameters<typeof updateAdminUser>[1]);
       refresh();
@@ -89,6 +112,27 @@ export default function AdminUsersPage() {
     } catch (err: unknown) { setError(err instanceof Error ? err.message : "Failed"); }
     finally { setSaving(false); }
   };
+
+  const handleRecoverySave = async () => {
+    if (!editUser) return;
+    setError(""); setSaving(true);
+    try {
+      await Promise.all([
+        adminPut(`/admin/users/${editUser.id}/timeline`, { timeline }),
+        adminPut(`/admin/users/${editUser.id}/evidence`, { evidence }),
+      ]);
+      setEditUser(null);
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  const addTimelineEvent = () => setTimeline([...timeline, { date: "", time: "", event: "", detail: "", status: "pending", icon: "📋" }]);
+  const updateTl = (i: number, k: keyof TimelineEvent, v: string) => setTimeline(timeline.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
+  const removeTl = (i: number) => setTimeline(timeline.filter((_, idx) => idx !== i));
+
+  const addEvidence = () => setEvidence([...evidence, { name: "", type: "PDF", size: "", date: "" }]);
+  const updateEv = (i: number, k: keyof EvidenceFile, v: string) => setEvidence(evidence.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
+  const removeEv = (i: number) => setEvidence(evidence.filter((_, idx) => idx !== i));
 
   const handleBlock = async (u: SFUser) => {
     setSaving(true);
@@ -255,7 +299,7 @@ export default function AdminUsersPage() {
 
             {/* Tab switcher */}
             <div className="flex gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-              {(["profile", "assets"] as EditMode[]).map((m) => (
+              {(["profile", "assets", "recovery"] as EditMode[]).map((m) => (
                 <button key={m} onClick={() => setEditMode(m)} className="flex-1 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all" style={{ background: editMode === m ? "rgba(0,212,255,0.15)" : "transparent", color: editMode === m ? "var(--accent-teal)" : "rgba(255,255,255,0.4)" }}>
                   {m}
                 </button>
@@ -303,6 +347,31 @@ export default function AdminUsersPage() {
                   <input type="checkbox" checked={editForm.recoveryComplete} onChange={(e) => setEditForm({ ...editForm, recoveryComplete: e.target.checked })} className="rounded" />
                   <span className="text-sm text-white/60">Recovery Complete</span>
                 </label>
+                <div className="pt-2 border-t" style={{ borderColor: "var(--glass-border)" }}>
+                  <p className="text-xs text-white/30 mb-2" style={{ fontFamily: "var(--font-mono)" }}>RECOVERY META</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">Opened Date</label>
+                      <input className="sf-input w-full" value={editForm.openedDate} onChange={(e) => setEditForm({ ...editForm, openedDate: e.target.value })} placeholder="Mar 1, 2026" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">Closed Date</label>
+                      <input className="sf-input w-full" value={editForm.closedDate} onChange={(e) => setEditForm({ ...editForm, closedDate: e.target.value })} placeholder="Leave blank if open" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">Original Claim (USD)</label>
+                      <input className="sf-input w-full" type="number" min="0" value={editForm.originalClaim} onChange={(e) => setEditForm({ ...editForm, originalClaim: e.target.value })} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">Recovery Days</label>
+                      <input className="sf-input w-full" type="number" min="0" value={editForm.recoveryDays} onChange={(e) => setEditForm({ ...editForm, recoveryDays: e.target.value })} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">Networks Traced</label>
+                      <input className="sf-input w-full" type="number" min="0" value={editForm.networksTraced} onChange={(e) => setEditForm({ ...editForm, networksTraced: e.target.value })} placeholder="0" />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -345,9 +414,60 @@ export default function AdminUsersPage() {
               </div>
             )}
 
+            {editMode === "recovery" && (
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>TIMELINE EVENTS</p>
+                    <button onClick={addTimelineEvent} className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>+ Add</button>
+                  </div>
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {timeline.map((ev, i) => (
+                      <div key={i} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input className="sf-input text-xs" value={ev.event} onChange={(e) => updateTl(i, "event", e.target.value)} placeholder="Event title" />
+                          <input className="sf-input text-xs" value={ev.date} onChange={(e) => updateTl(i, "date", e.target.value)} placeholder="Mar 8, 2026" />
+                          <input className="sf-input text-xs" value={ev.time} onChange={(e) => updateTl(i, "time", e.target.value)} placeholder="08:00 UTC" />
+                          <select className="sf-input text-xs" value={ev.status} onChange={(e) => updateTl(i, "status", e.target.value)}>
+                            <option value="done">Done</option>
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                          </select>
+                        </div>
+                        <input className="sf-input text-xs w-full" value={ev.detail} onChange={(e) => updateTl(i, "detail", e.target.value)} placeholder="Detail description" />
+                        <div className="flex justify-between items-center">
+                          <input className="sf-input text-xs w-16" value={ev.icon} onChange={(e) => updateTl(i, "icon", e.target.value)} placeholder="📋" />
+                          <button onClick={() => removeTl(i)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                        </div>
+                      </div>
+                    ))}
+                    {timeline.length === 0 && <p className="text-xs text-white/30 text-center py-3">No timeline events yet.</p>}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>EVIDENCE FILES</p>
+                    <button onClick={addEvidence} className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>+ Add</button>
+                  </div>
+                  <div className="space-y-2">
+                    {evidence.map((ev, i) => (
+                      <div key={i} className="grid grid-cols-2 gap-2 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
+                        <input className="sf-input text-xs col-span-2" value={ev.name} onChange={(e) => updateEv(i, "name", e.target.value)} placeholder="Document name" />
+                        <input className="sf-input text-xs" value={ev.type} onChange={(e) => updateEv(i, "type", e.target.value)} placeholder="PDF" />
+                        <input className="sf-input text-xs" value={ev.size} onChange={(e) => updateEv(i, "size", e.target.value)} placeholder="2.1 MB" />
+                        <input className="sf-input text-xs" value={ev.date} onChange={(e) => updateEv(i, "date", e.target.value)} placeholder="Mar 8, 2026" />
+                        <button onClick={() => removeEv(i)} className="text-xs text-red-400 hover:text-red-300 text-left">Remove</button>
+                      </div>
+                    ))}
+                    {evidence.length === 0 && <p className="text-xs text-white/30 text-center py-3">No evidence files yet.</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-2">
               <button onClick={() => setEditUser(null)} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white border transition-colors" style={{ borderColor: "var(--glass-border)" }}>Cancel</button>
-              <button onClick={editMode === "profile" ? handleEditSave : handleAssetsSave} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity hover:opacity-80" style={{ background: "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))", color: "#04060d" }}>
+              <button onClick={editMode === "profile" ? handleEditSave : editMode === "assets" ? handleAssetsSave : handleRecoverySave} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity hover:opacity-80" style={{ background: "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))", color: "#04060d" }}>
                 {saving ? <Spinner /> : "Save Changes"}
               </button>
             </div>
