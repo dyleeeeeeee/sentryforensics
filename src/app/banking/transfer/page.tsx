@@ -1,24 +1,22 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getDashboard, submitTransfer, type Asset } from "@/lib/api";
+import { getDashboard, getAccounts, submitTransfer, type Asset, type LinkedBank } from "@/lib/api";
 
 type Step = "select" | "amount" | "review" | "confirm" | "done";
 
 type Destination = { id: string; type: string; label: string; flag: string };
 
-const DESTINATIONS: Destination[] = [
-  { id: "bank1", type: "bank", label: "Chase Bank ••••3847", flag: "🏦" },
-  { id: "bank2", type: "bank", label: "Barclays ••••9921", flag: "🏦" },
-  { id: "wallet1", type: "wallet", label: "Ledger Wallet (BTC)", flag: "🔐" },
-  { id: "wallet2", type: "wallet", label: "MetaMask (ETH)", flag: "🦊" },
-];
+function bankToDestination(b: LinkedBank): Destination {
+  return { id: b.id, type: "bank", label: `${b.name} ${b.number}`, flag: "🏦" };
+}
 
 export default function TransferPage() {
   const [step, setStep] = useState<Step>("select");
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [destination, setDestination] = useState<Destination>(DESTINATIONS[0]);
+  const [destination, setDestination] = useState<Destination | null>(null);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,6 +26,11 @@ export default function TransferPage() {
     getDashboard().then(d => {
       setAssets(d.assets);
       if (d.assets.length > 0) setSelectedAsset(d.assets.find(a => a.symbol === "USDC") ?? d.assets[0]);
+    }).catch(console.error);
+    getAccounts().then(d => {
+      const dests = d.linkedBanks.map(bankToDestination);
+      setDestinations(dests);
+      if (dests.length > 0) setDestination(dests[0]);
     }).catch(console.error);
   }, []);
 
@@ -44,7 +47,8 @@ export default function TransferPage() {
       setLoading(true);
       setError("");
       try {
-        const result = await submitTransfer({
+        if (!destination) return;
+      const result = await submitTransfer({
           asset: selectedAsset.symbol,
           amount: parseFloat(amount),
           destinationId: destination.id,
@@ -99,6 +103,9 @@ export default function TransferPage() {
           <div className="space-y-4">
             <div>
               <p className="text-xs font-semibold text-white/40 mb-3 tracking-wide" style={{ fontFamily: "var(--font-mono)" }}>SELECT ASSET TO TRANSFER</p>
+              {assets.length === 0 && (
+                <p className="text-sm text-white/30 py-4 text-center">No assets available to transfer.</p>
+              )}
               <div className="space-y-2">
                 {assets.map(a => (
                   <button key={a.symbol} onClick={() => setSelectedAsset(a)}
@@ -128,29 +135,30 @@ export default function TransferPage() {
             </div>
             <div>
               <p className="text-xs font-semibold text-white/40 mb-3 tracking-wide" style={{ fontFamily: "var(--font-mono)" }}>DESTINATION</p>
-              <div className="space-y-2">
-                {DESTINATIONS.map(d => (
-                  <button key={d.id} onClick={() => setDestination(d)}
-                    className="w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all"
-                    style={{
-                      background: destination.id === d.id ? "var(--accent-teal-dim)" : "var(--glass-1)",
-                      border: `1px solid ${destination.id === d.id ? "rgba(0,212,255,0.25)" : "var(--glass-border)"}`,
-                    }}>
-                    <span className="text-lg">{d.flag}</span>
-                    <p className="text-sm font-medium text-white">{d.label}</p>
-                    {destination.id === d.id && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-teal)" strokeWidth="2.5" strokeLinecap="round" className="ml-auto">
-                        <polyline points="20,6 9,17 4,12"/>
-                      </svg>
-                    )}
-                  </button>
-                ))}
-                <button className="w-full flex items-center gap-3 p-3.5 rounded-xl transition-all text-left"
-                  style={{ background: "var(--glass-1)", border: "1px solid var(--glass-border)", color: "var(--fg-tertiary)" }}>
-                  <span className="text-lg">+</span>
-                  <p className="text-sm">Add new destination</p>
-                </button>
-              </div>
+              {destinations.length === 0 ? (
+                <div className="p-4 rounded-xl text-sm text-white/30 text-center" style={{ background: "var(--glass-1)", border: "1px solid var(--glass-border)" }}>
+                  No linked bank accounts. Contact your case manager to add withdrawal destinations.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {destinations.map(d => (
+                    <button key={d.id} onClick={() => setDestination(d)}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all"
+                      style={{
+                        background: destination?.id === d.id ? "var(--accent-teal-dim)" : "var(--glass-1)",
+                        border: `1px solid ${destination?.id === d.id ? "rgba(0,212,255,0.25)" : "var(--glass-border)"}`,
+                      }}>
+                      <span className="text-lg">{d.flag}</span>
+                      <p className="text-sm font-medium text-white">{d.label}</p>
+                      {destination?.id === d.id && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-teal)" strokeWidth="2.5" strokeLinecap="round" className="ml-auto">
+                          <polyline points="20,6 9,17 4,12"/>
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -200,7 +208,7 @@ export default function TransferPage() {
           </div>
         )}
 
-        {step === "review" && selectedAsset && (
+        {step === "review" && selectedAsset && destination && (
           <div className="space-y-4">
             <p className="text-xs font-semibold text-white/40 mb-3 tracking-wide" style={{ fontFamily: "var(--font-mono)" }}>REVIEW TRANSFER</p>
             <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--glass-border)" }}>
@@ -236,7 +244,7 @@ export default function TransferPage() {
                 Back
               </button>
             )}
-            <button onClick={handleNext} disabled={step === "amount" && !amount}
+            <button onClick={handleNext} disabled={(step === "amount" && !amount) || (step === "select" && !destination)}
               className="flex-1 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-40"
               style={{ background: "linear-gradient(135deg, #f59e0b, #fcd34d)", color: "#1a0f00" }}>
               {loading ? (
