@@ -32,6 +32,12 @@ export default function AccountsPage() {
         <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Accounts</h1>
       </div>
 
+      {accounts.length === 0 && (
+        <div className="glass-card rounded-2xl p-10 text-center text-white/30 text-sm">
+          No accounts assigned to your account yet.
+        </div>
+      )}
+
       {/* Account cards */}
       <div className="grid sm:grid-cols-2 gap-4">
         {accounts.map(acct => (
@@ -67,7 +73,7 @@ export default function AccountsPage() {
       </div>
 
       {/* Selected account detail */}
-      <div className="glass-card rounded-2xl overflow-hidden">
+      {selected && <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--glass-border)" }}>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-white">{selected.name} — Asset Breakdown</h2>
@@ -109,7 +115,7 @@ export default function AccountsPage() {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* Linked banks */}
       <div className="glass-card rounded-2xl overflow-hidden">
