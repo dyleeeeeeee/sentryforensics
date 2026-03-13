@@ -30,12 +30,6 @@ export interface Session {
   createdAt: number;
 }
 
-export interface PendingSession {
-  userId: string;
-  otp: string;
-  createdAt: number;
-}
-
 export interface Asset {
   symbol: string;
   name: string;
@@ -114,6 +108,7 @@ export interface IntakeSubmission {
   submittedAt: string;
   fullName: string;
   email: string;
+  password?: string;
   contactChannel: string;
   incidentType: string;
   incidentDate: string;

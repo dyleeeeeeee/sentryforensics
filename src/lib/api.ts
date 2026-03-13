@@ -28,12 +28,6 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export interface LoginResult {
-  pendingToken: string;
-  maskedPhone: string;
-  otpHint?: string;
-}
-
-export interface VerifyResult {
   token: string;
   user: SFUser;
 }
@@ -56,13 +50,6 @@ export async function login(identifier: string, password: string): Promise<Login
   return req<LoginResult>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ identifier, password }),
-  });
-}
-
-export async function verifyOTP(pendingToken: string, otp: string): Promise<VerifyResult> {
-  return req<VerifyResult>("/auth/verify", {
-    method: "POST",
-    body: JSON.stringify({ pendingToken, otp }),
   });
 }
 
@@ -279,6 +266,7 @@ export interface IntakePayload {
   lossEstimate: string;
   consent: boolean;
   honeypot: string;
+  password: string;
 }
 
 export async function submitIntake(payload: IntakePayload): Promise<{ ok: boolean; caseId: string }> {
@@ -292,6 +280,7 @@ export interface IntakeCase {
   submittedAt: string;
   fullName: string;
   email: string;
+  password?: string;
   contactChannel: string;
   incidentType: string;
   incidentDate: string;

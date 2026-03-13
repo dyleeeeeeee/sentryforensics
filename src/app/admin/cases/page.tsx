@@ -48,11 +48,11 @@ export default function AdminCasesPage() {
       await createAdminUser({
         name: c.fullName,
         email: c.email,
-        password: crypto.randomUUID().slice(0, 12),
+        password: c.password || crypto.randomUUID().slice(0, 12),
         caseId: c.id,
         clientSince: new Date().toLocaleString("en-US", { month: "short", year: "numeric" }),
       });
-      setCreateMsg({ id: c.id, msg: "Portal account created. Set their password via Edit in Users.", ok: true });
+      setCreateMsg({ id: c.id, msg: `Portal account created. Client logs in with Case ID: ${c.id} and their intake password.`, ok: true });
     } catch (err: unknown) {
       setCreateMsg({ id: c.id, msg: err instanceof Error ? err.message : "Failed to create user", ok: false });
     } finally {

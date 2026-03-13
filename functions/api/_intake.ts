@@ -19,6 +19,7 @@ export async function handleIntake(request: Request, env: Env): Promise<Response
     submittedAt: new Date().toISOString(),
     fullName: String(body.fullName),
     email: String(body.email),
+    password: body.password ? String(body.password) : undefined,
     contactChannel: String(body.contactChannel || "email"),
     incidentType: String(body.incidentType || "other"),
     incidentDate: String(body.incidentDate || ""),

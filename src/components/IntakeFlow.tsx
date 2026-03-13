@@ -10,6 +10,7 @@ type StepId = "safety" | "contact" | "incident" | "evidence" | "review" | "done"
 type FormState = {
   fullName: string;
   email: string;
+  password: string;
   contactChannel: "email" | "telegram" | "signal";
   incidentType: "scam" | "phishing" | "exchange" | "lost_access" | "other";
   incidentDate: string;
@@ -25,6 +26,7 @@ type FormState = {
 const initialState: FormState = {
   fullName: "",
   email: "",
+  password: "",
   contactChannel: "email",
   incidentType: "scam",
   incidentDate: "",
@@ -79,6 +81,7 @@ export function IntakeFlow() {
       if (!form.fullName.trim()) e.fullName = "Full name is required.";
       if (!form.email.trim()) e.email = "Email is required.";
       else if (!isEmail(form.email)) e.email = "Enter a valid email.";
+      if (!form.password || form.password.length < 8) e.password = "Password must be at least 8 characters.";
     }
 
     if (step === "incident" || step === "review") {
@@ -96,7 +99,7 @@ export function IntakeFlow() {
 
   const canGoNext = useMemo(() => {
     if (step === "safety") return !errors.consent && !errors.honeypot;
-    if (step === "contact") return !errors.fullName && !errors.email && !errors.honeypot;
+    if (step === "contact") return !errors.fullName && !errors.email && !errors.password && !errors.honeypot;
     if (step === "incident") return !errors.narrative && !errors.honeypot;
     if (step === "evidence") return !errors.honeypot;
     if (step === "review") return Object.keys(errors).length === 0;
@@ -124,7 +127,7 @@ export function IntakeFlow() {
     }
 
     if (step === "contact") {
-      markTouched(["fullName", "email"]);
+      markTouched(["fullName", "email", "password"]);
       if (!canGoNext) return;
       setStep("incident");
       return;
@@ -144,13 +147,14 @@ export function IntakeFlow() {
     }
 
     if (step === "review") {
-      markTouched(["fullName", "email", "narrative", "consent"]);
+      markTouched(["fullName", "email", "password", "narrative", "consent"]);
       if (!canGoNext) return;
       setSubmitting(true);
       setSubmitError("");
       submitIntake({
         fullName: form.fullName,
         email: form.email,
+        password: form.password,
         contactChannel: form.contactChannel,
         incidentType: form.incidentType,
         incidentDate: form.incidentDate,
@@ -214,7 +218,7 @@ export function IntakeFlow() {
           <div>
             <p className="text-sm font-semibold text-white">Intake workflow</p>
             <p className="mt-1 text-xs text-white/60">
-              UI-only mode: no data is transmitted.
+              Complete all steps to submit your case.
             </p>
           </div>
           <p className="text-xs font-medium text-white/60">
@@ -317,6 +321,22 @@ export function IntakeFlow() {
                 <p className="mt-2 text-xs font-medium text-red-200">{errors.email}</p>
               ) : null}
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-white/60">Create a portal password</label>
+            <p className="text-[11px] text-white/40 mb-2">You will use this to log into the client portal if your case is approved.</p>
+            <input
+              type="password"
+              value={form.password}
+              onChange={(e) => update("password", e.target.value)}
+              onBlur={() => markTouched(["password"])}
+              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/20"
+              placeholder="Min. 8 characters"
+            />
+            {touched.password && errors.password ? (
+              <p className="mt-2 text-xs font-medium text-red-200">{errors.password}</p>
+            ) : null}
           </div>
 
           <div>
@@ -466,7 +486,7 @@ export function IntakeFlow() {
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
             <p className="text-sm font-semibold text-white">Review</p>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              Confirm your details. When submission is enabled, this summary is what will be sent.
+              Confirm your details before submitting.
             </p>
           </div>
 

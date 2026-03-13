@@ -2,47 +2,25 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, verifyOTP, saveSession } from "@/lib/api";
+import { login, saveSession } from "@/lib/api";
 
 export default function BankingLoginPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"login" | "verify">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [identifier, setIdentifier] = useState("SF-2024-0847");
-  const [password, setPassword] = useState("password");
-  const [pendingToken, setPendingToken] = useState("");
-  const [maskedPhone, setMaskedPhone] = useState("");
-  const [otpHint, setOtpHint] = useState("");
-  const [pin, setPin] = useState(["", "", "", "", "", ""]);
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
+    if (!identifier.trim() || !password) { setError("Enter your Case ID or email and password."); return; }
     setLoading(true);
     setError("");
     try {
       const result = await login(identifier, password);
-      setPendingToken(result.pendingToken);
-      setMaskedPhone(result.maskedPhone);
-      if (result.otpHint) setOtpHint(result.otpHint);
-      setStep("verify");
+      saveSession(result.token, result.user);
+      router.push(result.user.role === "admin" ? "/admin" : "/banking/dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    const otp = pin.join("");
-    if (otp.length < 6) { setError("Enter the 6-digit code"); return; }
-    setLoading(true);
-    setError("");
-    try {
-      const result = await verifyOTP(pendingToken, otp);
-      saveSession(result.token, result.user);
-      router.push("/banking/dashboard");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -61,7 +39,6 @@ export default function BankingLoginPage() {
           backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px)",
           backgroundSize: "60px 60px"
         }}/>
-        {/* Orbiting ring */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none animate-spin-slow"
           style={{ border: "1px solid rgba(0,212,255,0.04)" }}/>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full pointer-events-none"
@@ -69,7 +46,6 @@ export default function BankingLoginPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-sm px-4">
-        {/* Header */}
         <div className="text-center mb-8 animate-fade-in">
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl mb-4"
             style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.18), rgba(253,211,77,0.08))", border: "1px solid rgba(245,158,11,0.25)", boxShadow: "0 0 40px rgba(245,158,11,0.12)" }}>
@@ -79,90 +55,54 @@ export default function BankingLoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: "var(--font-display)" }}>
-            Sentry Banking
+            Sentry Portal
           </h1>
-          <p className="text-sm text-white/45">Secure access to your recovered assets</p>
+          <p className="text-sm text-white/45">Secure access to your case and recovered assets</p>
         </div>
 
-        {step === "login" ? (
-          <div className="animate-fade-in rounded-2xl p-4 sm:p-6" style={{ background: "var(--glass-2)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow-xl)" }}>
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-white/40 mb-4 tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>SIGN IN</p>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Case ID / Email</label>
-                  <input className="sf-input" placeholder="SF-2024-0847 or email@example.com" value={identifier} onChange={e => setIdentifier(e.target.value)}/>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
-                  <input type="password" className="sf-input" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)}/>
-                </div>
-              </div>
+        <div className="animate-fade-in rounded-2xl p-4 sm:p-6" style={{ background: "var(--glass-2)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow-xl)" }}>
+          <p className="text-xs font-semibold text-white/40 mb-4 tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>SIGN IN</p>
+          <div className="space-y-3 mb-6">
+            <div>
+              <label className="block text-xs font-medium text-white/50 mb-1.5">Case ID or Email</label>
+              <input className="sf-input" placeholder="SF-XXXX-XXXX or email@example.com"
+                value={identifier} onChange={e => setIdentifier(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleLogin()}/>
             </div>
-
-            {error && <p className="mb-3 text-xs text-red-400 text-center">{error}</p>}
-            <button onClick={handleLogin} disabled={loading}
-              className="w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2"
-              style={{ background: loading ? "var(--glass-2)" : "linear-gradient(135deg, #f59e0b, #fcd34d)", color: loading ? "var(--fg-tertiary)" : "#1a0f00" }}>
-              {loading ? (
-                <>
-                  <span className="h-4 w-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--fg-tertiary)", borderTopColor: "transparent" }}/>
-                  Authenticating...
-                </>
-              ) : "Sign In Securely"}
-            </button>
-
-            <div className="mt-4 flex items-center justify-between text-xs text-white/35">
-              <button className="hover:text-white/60 transition-colors">Forgot password?</button>
-              <Link href="/contact" className="hover:text-white/60 transition-colors">Need help?</Link>
-            </div>
-
-            <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--glass-border)" }}>
-              <div className="flex items-center gap-2 justify-center text-[10px] text-white/25" style={{ fontFamily: "var(--font-mono)" }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-                </svg>
-                256-BIT ENCRYPTED · ZERO KNOWLEDGE
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
+              <input type="password" className="sf-input" placeholder="••••••••"
+                value={password} onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleLogin()}/>
             </div>
           </div>
-        ) : (
-          <div className="animate-fade-in rounded-2xl p-4 sm:p-6" style={{ background: "var(--glass-2)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow-xl)" }}>
-            <div className="text-center mb-6">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-full mb-3"
-                style={{ background: "var(--accent-emerald-dim)", border: "1px solid rgba(0,240,160,0.2)" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-              </div>
-              <p className="text-sm font-semibold text-white">Two-Factor Verification</p>
-              <p className="text-xs text-white/40 mt-1">Enter the 6-digit code sent to {maskedPhone || "+44••••7823"}</p>
-              {otpHint && <p className="text-xs mt-1" style={{color:"var(--accent-teal)"}}>Demo OTP: <span style={{fontFamily:"var(--font-mono)"}}>{otpHint}</span></p>}
-            </div>
-            {error && <p className="mb-3 text-xs text-red-400 text-center">{error}</p>}
-            <div className="flex gap-1.5 sm:gap-2 justify-center mb-5">
-              {pin.map((v, i) => (
-                <input key={i} type="text" inputMode="numeric" maxLength={1} value={v}
-                  onChange={(e) => { const n = [...pin]; n[i] = e.target.value; setPin(n); }}
-                  className="flex-1 min-w-0 max-w-[48px] h-12 text-center text-lg font-bold rounded-lg outline-none transition-all"
-                  style={{ background: v ? "rgba(0,212,255,0.1)" : "var(--glass-1)", border: v ? "1px solid rgba(0,212,255,0.3)" : "1px solid var(--glass-border)", color: "var(--fg-primary)", fontFamily: "var(--font-mono)" }}/>
-              ))}
-            </div>
-            <button onClick={handleVerify} disabled={loading}
-              className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
-              style={{ background: loading ? "var(--glass-2)" : "linear-gradient(135deg, #f59e0b, #fcd34d)", color: loading ? "var(--fg-tertiary)" : "#1a0f00" }}>
-              {loading ? (<><span className="h-4 w-4 border-2 rounded-full animate-spin" style={{borderColor:"var(--fg-tertiary)",borderTopColor:"transparent"}}/>Verifying...</>) : "Verify & Enter Portal"}
-            </button>
-            <p className="text-center text-xs text-white/30 mt-3">
-              Didn&apos;t receive code?{" "}
-              <button className="text-white/55 hover:text-white transition-colors">Resend</button>
-            </p>
+
+          {error && <p className="mb-3 text-xs text-red-400 text-center">{error}</p>}
+          <button onClick={handleLogin} disabled={loading}
+            className="w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2"
+            style={{ background: loading ? "var(--glass-2)" : "linear-gradient(135deg, #f59e0b, #fcd34d)", color: loading ? "var(--fg-tertiary)" : "#1a0f00" }}>
+            {loading ? (
+              <><span className="h-4 w-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--fg-tertiary)", borderTopColor: "transparent" }}/>Signing in...</>
+            ) : "Sign In"}
+          </button>
+
+          <div className="mt-4 flex items-center justify-end text-xs text-white/35">
+            <Link href="/contact" className="hover:text-white/60 transition-colors">Need help?</Link>
           </div>
-        )}
+
+          <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--glass-border)" }}>
+            <div className="flex items-center gap-2 justify-center text-[10px] text-white/25" style={{ fontFamily: "var(--font-mono)" }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+              256-BIT ENCRYPTED · ZERO KNOWLEDGE
+            </div>
+          </div>
+        </div>
 
         <p className="text-center text-xs text-white/25 mt-6">
           Not a client?{" "}
-          <Link href="/recover-wallet" className="text-white/45 hover:text-white transition-colors">Start your recovery case →</Link>
+          <Link href="/recover-wallet" className="text-white/45 hover:text-white transition-colors">Submit an intake →</Link>
         </p>
       </div>
     </div>
