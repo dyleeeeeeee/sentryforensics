@@ -79,7 +79,12 @@ export default function CardsPage() {
       </div>
 
       {/* Card details */}
-      <div className="grid sm:grid-cols-2 gap-5">
+      {!active && !loading && (
+        <div className="glass-card rounded-2xl p-10 text-center text-white/30 text-sm">
+          No cards assigned to your account yet.
+        </div>
+      )}
+      {active && <div className="grid sm:grid-cols-2 gap-5">
         <div className="glass-card rounded-2xl p-5 space-y-4">
           <h2 className="font-semibold text-white">Card Details</h2>
           <div className="space-y-3">
@@ -148,7 +153,7 @@ export default function CardsPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
