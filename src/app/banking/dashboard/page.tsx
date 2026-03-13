@@ -195,20 +195,20 @@ export default function DashboardPage() {
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
                 <span className="h-8 w-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
                   style={{
-                    background: tx.icon === "↓" ? "rgba(0,240,160,0.1)" : "rgba(255,68,102,0.1)",
-                    color: tx.icon === "↓" ? "var(--accent-emerald)" : "#ff6680",
-                    border: `1px solid ${tx.icon === "↓" ? "rgba(0,240,160,0.2)" : "rgba(255,68,102,0.2)"}`,
+                    background: tx.dir === "in" ? "rgba(0,240,160,0.1)" : "rgba(255,68,102,0.1)",
+                    color: tx.dir === "in" ? "var(--accent-emerald)" : "#ff6680",
+                    border: `1px solid ${tx.dir === "in" ? "rgba(0,240,160,0.2)" : "rgba(255,68,102,0.2)"}`,
                     fontFamily: "var(--font-mono)",
                     fontSize: "16px",
                   }}>
-                  {tx.icon}
+                  {tx.dir === "in" ? "↓" : "↑"}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white">{tx.type}</p>
                   <p className="text-[11px] text-white/35">{tx.date}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold" style={{ fontFamily: "var(--font-mono)", color: tx.icon === "↓" ? "var(--accent-emerald)" : "#ff6680" }}>
+                  <p className="text-sm font-semibold" style={{ fontFamily: "var(--font-mono)", color: tx.dir === "in" ? "var(--accent-emerald)" : "#ff6680" }}>
                     {tx.amount}
                   </p>
                   <p className="text-[11px] text-white/35">{tx.usd}</p>
