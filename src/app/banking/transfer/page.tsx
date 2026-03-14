@@ -396,11 +396,11 @@ export default function TransferPage() {
 
             <div>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl"
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-2xl pointer-events-none"
                   style={{ fontFamily: "var(--font-mono)", color: selectedAsset.color }}>
                   {selectedAsset.icon}
                 </span>
-                <input type="number" className="sf-input pl-11 py-4 text-xl font-bold"
+                <input type="number" className="sf-input pl-14 py-4 text-xl font-bold"
                   style={{ fontFamily: "var(--font-display)", fontSize: "22px" }}
                   placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)}/>
               </div>
