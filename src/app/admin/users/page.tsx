@@ -13,31 +13,44 @@ function authHeaders(): Record<string, string> {
   if (token) h["Authorization"] = `Bearer ${token}`;
   return h;
 }
-async function adminPut(path: string, body: unknown) {
-  const res = await fetch(`${BASE}${path}`, { method: "PUT", headers: authHeaders(), body: JSON.stringify(body) });
+async function adminFetch(path: string, method = "GET", body?: unknown) {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: authHeaders(),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
   if (!res.ok) { const d = await res.json(); throw new Error((d as {error?:string}).error ?? "Failed"); }
+  return res.json();
 }
 
 const ASSET_PRESETS = [
-  { symbol: "BTC", name: "Bitcoin", usdRate: 60772, change: 2.34, color: "#f59e0b", icon: "₿" },
-  { symbol: "ETH", name: "Ethereum", usdRate: 3010, change: -0.87, color: "#9d6fff", icon: "Ξ" },
-  { symbol: "USDC", name: "USD Coin", usdRate: 1, change: 0.01, color: "#00d4ff", icon: "$" },
-  { symbol: "SOL", name: "Solana", usdRate: 130, change: 5.12, color: "#00f0a0", icon: "◎" },
-  { symbol: "USDT", name: "Tether", usdRate: 1, change: 0.00, color: "#26a17b", icon: "₮" },
+  { symbol: "BTC", name: "Bitcoin", usdRate: 83000, change: 0, color: "#f59e0b", icon: "₿" },
+  { symbol: "ETH", name: "Ethereum", usdRate: 2000, change: 0, color: "#9d6fff", icon: "Ξ" },
+  { symbol: "USDC", name: "USD Coin", usdRate: 1, change: 0, color: "#00d4ff", icon: "$" },
+  { symbol: "SOL", name: "Solana", usdRate: 130, change: 0, color: "#00f0a0", icon: "◎" },
+  { symbol: "USDT", name: "Tether", usdRate: 1, change: 0, color: "#26a17b", icon: "₮" },
+  { symbol: "BNB", name: "BNB", usdRate: 600, change: 0, color: "#f0b90b", icon: "B" },
+  { symbol: "XRP", name: "XRP", usdRate: 2.2, change: 0, color: "#346aa9", icon: "✕" },
 ];
 
 const BLANK_FORM = { name: "", email: "", password: "", caseId: "", maskedPhone: "", role: "client" as "client" | "admin", recoveredUsd: "", recoveryRate: "", recoveryComplete: false };
 
-type EditMode = "profile" | "assets" | "recovery";
+type EditMode = "profile" | "assets" | "banks" | "cards" | "transactions" | "recovery";
 
 interface TimelineEvent { date: string; time: string; event: string; detail: string; status: "done" | "active" | "pending"; icon: string; }
 interface EvidenceFile { name: string; type: string; size: string; date: string; }
+interface LinkedBank { id: string; name: string; number: string; type: string; verified: boolean; country: string; }
+interface Card { id: string; name: string; number: string; expiry: string; holder: string; limit: number; spent: number; status: string; frozen: boolean; gradient: string; accent: string; }
+interface Transaction { id: string; type: string; asset: string; amount: string; usd: number; date: string; status: string; category: string; dir: string; }
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<SFUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState<"all" | "client" | "admin">("all");
+  const [confirmDelete, setConfirmDelete] = useState<SFUser | null>(null);
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -51,6 +64,9 @@ export default function AdminUsersPage() {
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [evidence, setEvidence] = useState<EvidenceFile[]>([]);
+  const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const refresh = useCallback(() => {
     getAdminUsers().then((d) => setUsers(d.users)).catch(console.error).finally(() => setLoading(false));
@@ -58,21 +74,35 @@ export default function AdminUsersPage() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  const filteredUsers = users.filter((u) => {
+    const q = search.toLowerCase();
+    const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.caseId.toLowerCase().includes(q);
+    const matchesRole = filterRole === "all" || u.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
+
   const openEdit = async (u: SFUser) => {
     setEditUser(u);
     setEditMode("profile");
     setEditForm({ name: u.name, email: u.email, password: "", maskedPhone: u.maskedPhone ?? "", role: u.role, recoveredUsd: String(u.recoveredUsd), recoveryRate: String(u.recoveryRate), recoveryComplete: u.recoveryComplete, openedDate: (u as unknown as Record<string,string>).openedDate ?? "", closedDate: (u as unknown as Record<string,string>).closedDate ?? "", originalClaim: String((u as unknown as Record<string,number>).originalClaim ?? ""), recoveryDays: String((u as unknown as Record<string,number>).recoveryDays ?? ""), networksTraced: String((u as unknown as Record<string,number>).networksTraced ?? ""), withdrawalOtp: u.withdrawalOtp ?? "" });
     setAssetsLoading(true);
+    setError("");
     try {
-      const [assetsRes, tlRaw, evRaw] = await Promise.all([
+      const [assetsRes, tlRaw, evRaw, banksRaw, cardsRaw, txRaw] = await Promise.all([
         getAdminUserAssets(u.id),
-        fetch(`/api/admin/users/${u.id}/timeline`, { headers: authHeaders() }).then(r => r.ok ? r.json() : { timeline: [] }).catch(() => ({ timeline: [] })),
-        fetch(`/api/admin/users/${u.id}/evidence`, { headers: authHeaders() }).then(r => r.ok ? r.json() : { evidence: [] }).catch(() => ({ evidence: [] })),
+        adminFetch(`/admin/users/${u.id}/timeline`).catch(() => ({ timeline: [] })),
+        adminFetch(`/admin/users/${u.id}/evidence`).catch(() => ({ evidence: [] })),
+        adminFetch(`/admin/users/${u.id}/linkedbanks`).catch(() => ({ linkedBanks: [] })),
+        adminFetch(`/admin/users/${u.id}/cards`).catch(() => ({ cards: [] })),
+        adminFetch(`/admin/users/${u.id}/transactions`).catch(() => ({ transactions: [] })),
       ]);
-      setAssets(assetsRes.assets);
+      setAssets(assetsRes.assets ?? []);
       setTimeline((tlRaw as {timeline: TimelineEvent[]}).timeline ?? []);
       setEvidence((evRaw as {evidence: EvidenceFile[]}).evidence ?? []);
-    } catch { setAssets([]); setTimeline([]); setEvidence([]); }
+      setLinkedBanks((banksRaw as {linkedBanks: LinkedBank[]}).linkedBanks ?? []);
+      setCards((cardsRaw as {cards: Card[]}).cards ?? []);
+      setTransactions((txRaw as {transactions: Transaction[]}).transactions ?? []);
+    } catch { setAssets([]); setTimeline([]); setEvidence([]); setLinkedBanks([]); setCards([]); setTransactions([]); }
     finally { setAssetsLoading(false); }
   };
 
@@ -118,21 +148,63 @@ export default function AdminUsersPage() {
     setError(""); setSaving(true);
     try {
       await Promise.all([
-        adminPut(`/admin/users/${editUser.id}/timeline`, { timeline }),
-        adminPut(`/admin/users/${editUser.id}/evidence`, { evidence }),
+        adminFetch(`/admin/users/${editUser.id}/timeline`, "PUT", { timeline }),
+        adminFetch(`/admin/users/${editUser.id}/evidence`, "PUT", { evidence }),
       ]);
       setEditUser(null);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : "Failed"); }
     finally { setSaving(false); }
   };
 
-  const addTimelineEvent = () => setTimeline([...timeline, { date: "", time: "", event: "", detail: "", status: "pending", icon: "📋" }]);
-  const updateTl = (i: number, k: keyof TimelineEvent, v: string) => setTimeline(timeline.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
-  const removeTl = (i: number) => setTimeline(timeline.filter((_, idx) => idx !== i));
+  const handleBanksSave = async () => {
+    if (!editUser) return;
+    setError(""); setSaving(true);
+    try {
+      await adminFetch(`/admin/users/${editUser.id}/linkedbanks`, "PUT", { linkedBanks });
+      setEditUser(null);
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Failed"); }
+    finally { setSaving(false); }
+  };
 
-  const addEvidence = () => setEvidence([...evidence, { name: "", type: "PDF", size: "", date: "" }]);
-  const updateEv = (i: number, k: keyof EvidenceFile, v: string) => setEvidence(evidence.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
-  const removeEv = (i: number) => setEvidence(evidence.filter((_, idx) => idx !== i));
+  const handleCardsSave = async () => {
+    if (!editUser) return;
+    setError(""); setSaving(true);
+    try {
+      await adminFetch(`/admin/users/${editUser.id}/cards`, "PUT", { cards });
+      setEditUser(null);
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  const handleTransactionsSave = async () => {
+    if (!editUser) return;
+    setError(""); setSaving(true);
+    try {
+      await adminFetch(`/admin/users/${editUser.id}/transactions`, "PUT", { transactions });
+      setEditUser(null);
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (u: SFUser) => {
+    setSaving(true);
+    try {
+      await adminFetch(`/admin/users/${u.id}`, "DELETE");
+      setConfirmDelete(null);
+      setEditUser(null);
+      refresh();
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  const handleTerminateSessions = async (u: SFUser) => {
+    setSaving(true);
+    try {
+      await adminFetch(`/admin/users/${u.id}/sessions`, "DELETE");
+      refresh();
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  };
 
   const handleBlock = async (u: SFUser) => {
     setSaving(true);
@@ -156,12 +228,46 @@ export default function AdminUsersPage() {
 
   const removeAsset = (symbol: string) => setAssets(assets.filter((a) => a.symbol !== symbol));
 
+  // Banks
+  const addBank = () => setLinkedBanks([...linkedBanks, { id: "b" + Date.now().toString(36), name: "", number: "••••0000", type: "Checking", verified: false, country: "🇺🇸" }]);
+  const updateBank = (i: number, k: keyof LinkedBank, v: string | boolean) => setLinkedBanks(linkedBanks.map((b, idx) => idx === i ? { ...b, [k]: v } : b));
+  const removeBank = (i: number) => setLinkedBanks(linkedBanks.filter((_, idx) => idx !== i));
+
+  // Cards
+  const addCard = () => setCards([...cards, { id: "c" + Date.now().toString(36), name: "", number: "•••• •••• •••• 0000", expiry: "", holder: editUser?.name ?? "", limit: 10000, spent: 0, status: "active", frozen: false, gradient: "linear-gradient(135deg, #0d1117 0%, #1a1f2e 100%)", accent: "#00d4ff" }]);
+  const updateCard = (i: number, k: keyof Card, v: string | number | boolean) => setCards(cards.map((c, idx) => idx === i ? { ...c, [k]: v } : c));
+  const removeCard = (i: number) => setCards(cards.filter((_, idx) => idx !== i));
+
+  // Transactions
+  const addTransaction = () => setTransactions([{ id: "t" + Date.now().toString(36), type: "", asset: "USDC", amount: "+0 USDC", usd: 0, date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), status: "complete", category: "recovery", dir: "in" }, ...transactions]);
+  const updateTx = (i: number, k: keyof Transaction, v: string | number) => setTransactions(transactions.map((t, idx) => idx === i ? { ...t, [k]: v } : t));
+  const removeTx = (i: number) => setTransactions(transactions.filter((_, idx) => idx !== i));
+
+  const addTimelineEvent = () => setTimeline([...timeline, { date: "", time: "", event: "", detail: "", status: "pending", icon: "📋" }]);
+  const updateTl = (i: number, k: keyof TimelineEvent, v: string) => setTimeline(timeline.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
+  const removeTl = (i: number) => setTimeline(timeline.filter((_, idx) => idx !== i));
+
+  const addEvidence = () => setEvidence([...evidence, { name: "", type: "PDF", size: "", date: "" }]);
+  const updateEv = (i: number, k: keyof EvidenceFile, v: string) => setEvidence(evidence.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
+  const removeEv = (i: number) => setEvidence(evidence.filter((_, idx) => idx !== i));
+
+  const getSaveHandler = () => {
+    switch (editMode) {
+      case "assets": return handleAssetsSave;
+      case "banks": return handleBanksSave;
+      case "cards": return handleCardsSave;
+      case "transactions": return handleTransactionsSave;
+      case "recovery": return handleRecoverySave;
+      default: return handleEditSave;
+    }
+  };
+
   const Spinner = () => (
     <span className="h-4 w-4 border-2 rounded-full animate-spin inline-block" style={{ borderColor: "var(--accent-teal)", borderTopColor: "transparent" }} />
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs tracking-widest text-white/30 mb-1" style={{ fontFamily: "var(--font-mono)" }}>ADMIN PORTAL</p>
@@ -174,21 +280,37 @@ export default function AdminUsersPage() {
 
       {error && <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
 
+      {/* Search + filter */}
+      <div className="flex gap-3">
+        <input
+          className="sf-input flex-1"
+          placeholder="Search by name, email or case ID…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <select className="sf-input w-32" value={filterRole} onChange={e => setFilterRole(e.target.value as "all" | "client" | "admin")}>
+          <option value="all">All roles</option>
+          <option value="client">Client</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center h-40"><Spinner /></div>
       ) : (
         <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="p-4 border-b" style={{ borderColor: "var(--glass-border)" }}>
-            <p className="text-sm font-semibold text-white">{users.length} registered user{users.length !== 1 ? "s" : ""}</p>
+          <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: "var(--glass-border)" }}>
+            <p className="text-sm font-semibold text-white">{filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}{search || filterRole !== "all" ? " (filtered)" : ""}</p>
+            <p className="text-xs text-white/30">{users.length} total</p>
           </div>
           <div className="divide-y" style={{ borderColor: "var(--glass-border)" }}>
-            {users.map((u) => {
-              const initials = u.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+            {filteredUsers.map((u) => {
+              const ini = u.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
               return (
                 <div key={u.id} className="flex items-center gap-3 p-4">
                   <span className="h-9 w-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold"
                     style={{ background: u.role === "admin" ? "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))" : "linear-gradient(135deg, #f59e0b, #fcd34d)", color: "#04060d", opacity: u.blocked ? 0.4 : 1 }}>
-                    {initials}
+                    {ini}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -199,26 +321,44 @@ export default function AdminUsersPage() {
                       {u.blocked && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">BLOCKED</span>}
                     </div>
                     <p className="text-xs text-white/40 truncate">{u.email}</p>
-                    <p className="text-xs text-white/30 sm:hidden" style={{ fontFamily: "var(--font-mono)" }}>{u.caseId}</p>
+                    <p className="text-xs text-white/30" style={{ fontFamily: "var(--font-mono)" }}>{u.caseId}</p>
                   </div>
                   <div className="text-right hidden sm:block shrink-0">
-                    <p className="text-xs text-white/50" style={{ fontFamily: "var(--font-mono)" }}>{u.caseId}</p>
-                    <p className="text-xs text-white/30">Since {u.clientSince}</p>
-                  </div>
-                  <div className="text-right shrink-0">
                     <p className="text-sm font-semibold" style={{ color: "var(--accent-emerald)" }}>${u.recoveredUsd.toLocaleString()}</p>
                     <p className="text-xs text-white/30">{u.recoveryRate}%</p>
                   </div>
-                  <div className="flex gap-1 shrink-0">
+                  <div className="flex gap-1 shrink-0 flex-wrap justify-end">
                     <button onClick={() => openEdit(u)} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>Edit</button>
                     <button onClick={() => handleBlock(u)} disabled={saving} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: u.blocked ? "rgba(0,255,136,0.1)" : "rgba(239,68,68,0.1)", color: u.blocked ? "var(--accent-emerald)" : "#f87171" }}>
                       {u.blocked ? "Unblock" : "Block"}
+                    </button>
+                    <button onClick={() => handleTerminateSessions(u)} disabled={saving} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }} title="Force logout all active sessions">
+                      Kick
+                    </button>
+                    <button onClick={() => setConfirmDelete(u)} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171" }} title="Permanently delete user">
+                      Delete
                     </button>
                   </div>
                 </div>
               );
             })}
-            {users.length === 0 && <p className="text-sm text-white/30 text-center py-10">No users found.</p>}
+            {filteredUsers.length === 0 && <p className="text-sm text-white/30 text-center py-10">{search ? "No users match your search." : "No users yet."}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm Delete Modal ── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(4,6,13,0.9)", backdropFilter: "blur(8px)" }}>
+          <div className="glass-card rounded-2xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Delete User?</h2>
+            <p className="text-sm text-white/50">This will permanently delete <span className="text-white font-semibold">{confirmDelete.name}</span> and all their data (assets, transactions, cards, banks, timeline). This cannot be undone.</p>
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white border transition-colors" style={{ borderColor: "var(--glass-border)" }}>Cancel</button>
+              <button onClick={() => handleDelete(confirmDelete)} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity hover:opacity-80" style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}>
+                {saving ? <Spinner /> : "Delete Permanently"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -288,19 +428,26 @@ export default function AdminUsersPage() {
       {/* ── Edit User Drawer ── */}
       {editUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(4,6,13,0.85)", backdropFilter: "blur(8px)" }}>
-          <div className="glass-card rounded-2xl w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+          <div className="glass-card rounded-2xl w-full max-w-2xl p-6 space-y-5 max-h-[92vh] overflow-y-auto">
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>{editUser.name}</h2>
-                <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>{editUser.caseId}</p>
+                <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>{editUser.caseId} · {editUser.email}</p>
               </div>
-              <button onClick={() => setEditUser(null)} className="text-white/40 hover:text-white text-xl leading-none">×</button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => handleTerminateSessions(editUser)} disabled={saving} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }} title="Force logout">Kick</button>
+                <button onClick={() => { setEditUser(null); setConfirmDelete(editUser); }} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>Delete</button>
+                <button onClick={() => setEditUser(null)} className="text-white/40 hover:text-white text-xl leading-none ml-1">×</button>
+              </div>
             </div>
 
-            {/* Tab switcher */}
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-              {(["profile", "assets", "recovery"] as EditMode[]).map((m) => (
-                <button key={m} onClick={() => setEditMode(m)} className="flex-1 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all" style={{ background: editMode === m ? "rgba(0,212,255,0.15)" : "transparent", color: editMode === m ? "var(--accent-teal)" : "rgba(255,255,255,0.4)" }}>
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: "rgba(255,255,255,0.04)" }}>
+              {(["profile", "assets", "banks", "cards", "transactions", "recovery"] as EditMode[]).map((m) => (
+                <button key={m} onClick={() => setEditMode(m)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all"
+                  style={{ background: editMode === m ? "rgba(0,212,255,0.15)" : "transparent", color: editMode === m ? "var(--accent-teal)" : "rgba(255,255,255,0.4)" }}>
                   {m}
                 </button>
               ))}
@@ -308,120 +455,205 @@ export default function AdminUsersPage() {
 
             {error && <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
 
+            {/* ── Profile ── */}
             {editMode === "profile" && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
-                    <label className="text-xs text-white/40 mb-1 block">Full Name</label>
-                    <input className="sf-input w-full" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs text-white/40 mb-1 block">Email</label>
-                    <input className="sf-input w-full" type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-xs text-white/40 mb-1 block">New Password</label>
-                    <input className="sf-input w-full" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} placeholder="Leave blank to keep" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-white/40 mb-1 block">Phone (masked)</label>
-                    <input className="sf-input w-full" value={editForm.maskedPhone} onChange={(e) => setEditForm({ ...editForm, maskedPhone: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-xs text-white/40 mb-1 block">Role</label>
-                    <select className="sf-input w-full" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value as "client" | "admin" })}>
-                      <option value="client">Client</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-white/40 mb-1 block">Recovered USD</label>
-                    <input className="sf-input w-full" type="number" min="0" value={editForm.recoveredUsd} onChange={(e) => setEditForm({ ...editForm, recoveredUsd: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-xs text-white/40 mb-1 block">Recovery Rate %</label>
-                    <input className="sf-input w-full" type="number" min="0" max="100" value={editForm.recoveryRate} onChange={(e) => setEditForm({ ...editForm, recoveryRate: e.target.value })} />
-                  </div>
+                  <div className="col-span-2"><label className="text-xs text-white/40 mb-1 block">Full Name</label>
+                    <input className="sf-input w-full" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /></div>
+                  <div className="col-span-2"><label className="text-xs text-white/40 mb-1 block">Email</label>
+                    <input className="sf-input w-full" type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} /></div>
+                  <div><label className="text-xs text-white/40 mb-1 block">New Password</label>
+                    <input className="sf-input w-full" value={editForm.password} onChange={e => setEditForm({...editForm, password: e.target.value})} placeholder="Leave blank to keep" /></div>
+                  <div><label className="text-xs text-white/40 mb-1 block">Phone (masked)</label>
+                    <input className="sf-input w-full" value={editForm.maskedPhone} onChange={e => setEditForm({...editForm, maskedPhone: e.target.value})} /></div>
+                  <div><label className="text-xs text-white/40 mb-1 block">Role</label>
+                    <select className="sf-input w-full" value={editForm.role} onChange={e => setEditForm({...editForm, role: e.target.value as "client"|"admin"})}>
+                      <option value="client">Client</option><option value="admin">Admin</option>
+                    </select></div>
+                  <div><label className="text-xs text-white/40 mb-1 block">Recovered USD</label>
+                    <input className="sf-input w-full" type="number" min="0" value={editForm.recoveredUsd} onChange={e => setEditForm({...editForm, recoveredUsd: e.target.value})} /></div>
+                  <div><label className="text-xs text-white/40 mb-1 block">Recovery Rate %</label>
+                    <input className="sf-input w-full" type="number" min="0" max="100" value={editForm.recoveryRate} onChange={e => setEditForm({...editForm, recoveryRate: e.target.value})} /></div>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={editForm.recoveryComplete} onChange={(e) => setEditForm({ ...editForm, recoveryComplete: e.target.checked })} className="rounded" />
+                  <input type="checkbox" checked={editForm.recoveryComplete} onChange={e => setEditForm({...editForm, recoveryComplete: e.target.checked})} />
                   <span className="text-sm text-white/60">Recovery Complete</span>
                 </label>
-                <div className="pt-2 border-t" style={{ borderColor: "var(--glass-border)" }}>
-                  <p className="text-xs text-white/30 mb-2" style={{ fontFamily: "var(--font-mono)" }}>RECOVERY META</p>
+                <div className="pt-3 border-t space-y-3" style={{ borderColor: "var(--glass-border)" }}>
+                  <p className="text-xs text-white/30" style={{ fontFamily: "var(--font-mono)" }}>RECOVERY META</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-white/40 mb-1 block">Opened Date</label>
-                      <input className="sf-input w-full" value={editForm.openedDate} onChange={(e) => setEditForm({ ...editForm, openedDate: e.target.value })} placeholder="Mar 1, 2026" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-white/40 mb-1 block">Closed Date</label>
-                      <input className="sf-input w-full" value={editForm.closedDate} onChange={(e) => setEditForm({ ...editForm, closedDate: e.target.value })} placeholder="Leave blank if open" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-white/40 mb-1 block">Original Claim (USD)</label>
-                      <input className="sf-input w-full" type="number" min="0" value={editForm.originalClaim} onChange={(e) => setEditForm({ ...editForm, originalClaim: e.target.value })} placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-white/40 mb-1 block">Recovery Days</label>
-                      <input className="sf-input w-full" type="number" min="0" value={editForm.recoveryDays} onChange={(e) => setEditForm({ ...editForm, recoveryDays: e.target.value })} placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-white/40 mb-1 block">Networks Traced</label>
-                      <input className="sf-input w-full" type="number" min="0" value={editForm.networksTraced} onChange={(e) => setEditForm({ ...editForm, networksTraced: e.target.value })} placeholder="0" />
-                    </div>
+                    <div><label className="text-xs text-white/40 mb-1 block">Opened Date</label>
+                      <input className="sf-input w-full" value={editForm.openedDate} onChange={e => setEditForm({...editForm, openedDate: e.target.value})} placeholder="Mar 1, 2026" /></div>
+                    <div><label className="text-xs text-white/40 mb-1 block">Closed Date</label>
+                      <input className="sf-input w-full" value={editForm.closedDate} onChange={e => setEditForm({...editForm, closedDate: e.target.value})} placeholder="Leave blank if open" /></div>
+                    <div><label className="text-xs text-white/40 mb-1 block">Original Claim (USD)</label>
+                      <input className="sf-input w-full" type="number" min="0" value={editForm.originalClaim} onChange={e => setEditForm({...editForm, originalClaim: e.target.value})} /></div>
+                    <div><label className="text-xs text-white/40 mb-1 block">Recovery Days</label>
+                      <input className="sf-input w-full" type="number" min="0" value={editForm.recoveryDays} onChange={e => setEditForm({...editForm, recoveryDays: e.target.value})} /></div>
+                    <div><label className="text-xs text-white/40 mb-1 block">Networks Traced</label>
+                      <input className="sf-input w-full" type="number" min="0" value={editForm.networksTraced} onChange={e => setEditForm({...editForm, networksTraced: e.target.value})} /></div>
                   </div>
                 </div>
-                <div className="pt-2 border-t" style={{ borderColor: "var(--glass-border)" }}>
-                  <p className="text-xs text-white/30 mb-2" style={{ fontFamily: "var(--font-mono)" }}>WITHDRAWAL AUTHORIZATION</p>
-                  <div>
-                    <label className="text-xs text-white/40 mb-1 block">Withdrawal OTP</label>
-                    <input className="sf-input w-full" value={editForm.withdrawalOtp} onChange={(e) => setEditForm({ ...editForm, withdrawalOtp: e.target.value })} placeholder="Set a passcode for this user's withdrawals" />
-                    <p className="text-[10px] text-white/25 mt-1">This is the passcode the user must enter before initiating a withdrawal. Leave blank to disable withdrawals for this user.</p>
-                  </div>
+                <div className="pt-3 border-t space-y-2" style={{ borderColor: "var(--glass-border)" }}>
+                  <p className="text-xs text-white/30" style={{ fontFamily: "var(--font-mono)" }}>WITHDRAWAL AUTHORIZATION</p>
+                  <label className="text-xs text-white/40 mb-1 block">Withdrawal OTP</label>
+                  <input className="sf-input w-full" value={editForm.withdrawalOtp} onChange={e => setEditForm({...editForm, withdrawalOtp: e.target.value})} placeholder="Set passcode for this user's withdrawals" />
+                  <p className="text-[10px] text-white/25">Leave blank to block all withdrawals for this user.</p>
                 </div>
               </div>
             )}
 
+            {/* ── Assets ── */}
             {editMode === "assets" && (
               <div className="space-y-4">
-                {assetsLoading ? (
-                  <div className="flex justify-center py-6"><Spinner /></div>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      {assets.map((a) => (
-                        <div key={a.symbol} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-                          <span className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: a.color + "20", color: a.color }}>{a.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-white">{a.symbol}</p>
-                            <p className="text-xs text-white/30">${(a.amount * a.usdRate).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD</p>
-                          </div>
-                          <input type="number" min="0" step="any" value={a.amount} onChange={(e) => updateAssetAmount(a.symbol, parseFloat(e.target.value) || 0)}
-                            className="sf-input w-28 text-right text-sm" />
-                          <button onClick={() => removeAsset(a.symbol)} className="text-white/30 hover:text-red-400 text-lg leading-none ml-1">×</button>
+                {assetsLoading ? <div className="flex justify-center py-6"><Spinner /></div> : <>
+                  <div className="space-y-2">
+                    {assets.map(a => (
+                      <div key={a.symbol} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
+                        <span className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: a.color+"20", color: a.color }}>{a.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-white">{a.name} ({a.symbol})</p>
+                          <p className="text-xs text-white/30">${(a.amount * a.usdRate).toLocaleString(undefined,{maximumFractionDigits:2})} USD</p>
                         </div>
-                      ))}
-                      {assets.length === 0 && <p className="text-xs text-white/30 text-center py-4">No assets. Add one below.</p>}
-                    </div>
-                    <div>
-                      <p className="text-xs text-white/40 mb-2">Add asset</p>
-                      <div className="flex flex-wrap gap-2">
-                        {ASSET_PRESETS.filter((p) => !assets.find((a) => a.symbol === p.symbol)).map((p) => (
-                          <button key={p.symbol} onClick={() => addAsset(p.symbol)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80" style={{ background: p.color + "20", color: p.color }}>
-                            + {p.symbol}
-                          </button>
-                        ))}
+                        <input type="number" min="0" step="any" value={a.amount} onChange={e => updateAssetAmount(a.symbol, parseFloat(e.target.value)||0)} className="sf-input w-28 text-right text-sm" />
+                        <button onClick={() => removeAsset(a.symbol)} className="text-white/30 hover:text-red-400 text-lg leading-none">×</button>
                       </div>
+                    ))}
+                    {assets.length === 0 && <p className="text-xs text-white/30 text-center py-4">No assets. Add one below.</p>}
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/40 mb-2">Add asset</p>
+                    <div className="flex flex-wrap gap-2">
+                      {ASSET_PRESETS.filter(p => !assets.find(a => a.symbol === p.symbol)).map(p => (
+                        <button key={p.symbol} onClick={() => addAsset(p.symbol)} className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity" style={{ background: p.color+"20", color: p.color }}>+ {p.symbol}</button>
+                      ))}
                     </div>
-                    <div className="p-3 rounded-xl text-sm font-semibold" style={{ background: "rgba(0,255,136,0.06)", color: "var(--accent-emerald)" }}>
-                      Total: ${assets.reduce((s, a) => s + a.usd, 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </div>
-                  </>
-                )}
+                  </div>
+                  <div className="p-3 rounded-xl text-sm font-semibold" style={{ background: "rgba(0,255,136,0.06)", color: "var(--accent-emerald)" }}>
+                    Total: ${assets.reduce((s,a) => s+a.usd, 0).toLocaleString(undefined,{maximumFractionDigits:2})}
+                  </div>
+                </>}
               </div>
             )}
 
+            {/* ── Banks ── */}
+            {editMode === "banks" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>LINKED BANK ACCOUNTS</p>
+                  <button onClick={addBank} className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>+ Add</button>
+                </div>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {linkedBanks.map((b, i) => (
+                    <div key={b.id} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Bank Name</label>
+                          <input className="sf-input text-xs w-full" value={b.name} onChange={e => updateBank(i, "name", e.target.value)} placeholder="Chase Bank" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Account Number</label>
+                          <input className="sf-input text-xs w-full" value={b.number} onChange={e => updateBank(i, "number", e.target.value)} placeholder="••••1234" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Type</label>
+                          <select className="sf-input text-xs w-full" value={b.type} onChange={e => updateBank(i, "type", e.target.value)}>
+                            <option>Checking</option><option>Savings</option><option>Business</option>
+                          </select></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Country Flag</label>
+                          <input className="sf-input text-xs w-full" value={b.country} onChange={e => updateBank(i, "country", e.target.value)} placeholder="🇺🇸" /></div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <input type="checkbox" checked={b.verified} onChange={e => updateBank(i, "verified", e.target.checked)} />
+                          <span className="text-xs text-white/50">Verified</span>
+                        </div>
+                      </div>
+                      <button onClick={() => removeBank(i)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                    </div>
+                  ))}
+                  {linkedBanks.length === 0 && <p className="text-xs text-white/30 text-center py-6">No linked banks. Add one above.</p>}
+                </div>
+              </div>
+            )}
+
+            {/* ── Cards ── */}
+            {editMode === "cards" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>VIRTUAL CARDS</p>
+                  <button onClick={addCard} className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>+ Add</button>
+                </div>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {cards.map((c, i) => (
+                    <div key={c.id} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Card Label</label>
+                          <input className="sf-input text-xs w-full" value={c.name} onChange={e => updateCard(i, "name", e.target.value)} placeholder="Primary Card" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Card Number</label>
+                          <input className="sf-input text-xs w-full" value={c.number} onChange={e => updateCard(i, "number", e.target.value)} placeholder="•••• •••• •••• 0000" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Expiry</label>
+                          <input className="sf-input text-xs w-full" value={c.expiry} onChange={e => updateCard(i, "expiry", e.target.value)} placeholder="12/28" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Holder</label>
+                          <input className="sf-input text-xs w-full" value={c.holder} onChange={e => updateCard(i, "holder", e.target.value)} /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Limit (USD)</label>
+                          <input className="sf-input text-xs w-full" type="number" min="0" value={c.limit} onChange={e => updateCard(i, "limit", parseFloat(e.target.value)||0)} /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Spent (USD)</label>
+                          <input className="sf-input text-xs w-full" type="number" min="0" value={c.spent} onChange={e => updateCard(i, "spent", parseFloat(e.target.value)||0)} /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Status</label>
+                          <select className="sf-input text-xs w-full" value={c.status} onChange={e => updateCard(i, "status", e.target.value)}>
+                            <option value="active">Active</option><option value="inactive">Inactive</option><option value="expired">Expired</option>
+                          </select></div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <input type="checkbox" checked={c.frozen} onChange={e => updateCard(i, "frozen", e.target.checked)} />
+                          <span className="text-xs text-white/50">Frozen</span>
+                        </div>
+                      </div>
+                      <button onClick={() => removeCard(i)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                    </div>
+                  ))}
+                  {cards.length === 0 && <p className="text-xs text-white/30 text-center py-6">No cards. Add one above.</p>}
+                </div>
+              </div>
+            )}
+
+            {/* ── Transactions ── */}
+            {editMode === "transactions" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>TRANSACTION HISTORY</p>
+                  <button onClick={addTransaction} className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>+ Add</button>
+                </div>
+                <div className="space-y-2 max-h-[420px] overflow-y-auto">
+                  {transactions.map((t, i) => (
+                    <div key={t.id} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Description</label>
+                          <input className="sf-input text-xs w-full" value={t.type} onChange={e => updateTx(i, "type", e.target.value)} placeholder="Recovery Credit" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Asset</label>
+                          <input className="sf-input text-xs w-full" value={t.asset} onChange={e => updateTx(i, "asset", e.target.value)} placeholder="BTC" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Amount (display)</label>
+                          <input className="sf-input text-xs w-full" value={t.amount} onChange={e => updateTx(i, "amount", e.target.value)} placeholder="+1.2 BTC" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">USD Value</label>
+                          <input className="sf-input text-xs w-full" type="number" value={t.usd} onChange={e => updateTx(i, "usd", parseFloat(e.target.value)||0)} /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Date</label>
+                          <input className="sf-input text-xs w-full" value={t.date} onChange={e => updateTx(i, "date", e.target.value)} placeholder="Mar 8, 2026" /></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Status</label>
+                          <select className="sf-input text-xs w-full" value={t.status} onChange={e => updateTx(i, "status", e.target.value)}>
+                            <option value="complete">Complete</option><option value="pending">Pending</option><option value="processing">Processing</option><option value="failed">Failed</option>
+                          </select></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Category</label>
+                          <select className="sf-input text-xs w-full" value={t.category} onChange={e => updateTx(i, "category", e.target.value)}>
+                            <option value="recovery">Recovery</option><option value="transfer">Transfer</option><option value="yield">Yield</option><option value="fee">Fee</option><option value="exchange">Exchange</option>
+                          </select></div>
+                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Direction</label>
+                          <select className="sf-input text-xs w-full" value={t.dir} onChange={e => updateTx(i, "dir", e.target.value)}>
+                            <option value="in">In (credit)</option><option value="out">Out (debit)</option>
+                          </select></div>
+                      </div>
+                      <button onClick={() => removeTx(i)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                    </div>
+                  ))}
+                  {transactions.length === 0 && <p className="text-xs text-white/30 text-center py-6">No transactions. Add one above.</p>}
+                </div>
+              </div>
+            )}
+
+            {/* ── Recovery ── */}
             {editMode === "recovery" && (
               <div className="space-y-4">
                 <div>
@@ -429,27 +661,25 @@ export default function AdminUsersPage() {
                     <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>TIMELINE EVENTS</p>
                     <button onClick={addTimelineEvent} className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>+ Add</button>
                   </div>
-                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
                     {timeline.map((ev, i) => (
                       <div key={i} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
                         <div className="grid grid-cols-2 gap-2">
-                          <input className="sf-input text-xs" value={ev.event} onChange={(e) => updateTl(i, "event", e.target.value)} placeholder="Event title" />
-                          <input className="sf-input text-xs" value={ev.date} onChange={(e) => updateTl(i, "date", e.target.value)} placeholder="Mar 8, 2026" />
-                          <input className="sf-input text-xs" value={ev.time} onChange={(e) => updateTl(i, "time", e.target.value)} placeholder="08:00 UTC" />
-                          <select className="sf-input text-xs" value={ev.status} onChange={(e) => updateTl(i, "status", e.target.value)}>
-                            <option value="done">Done</option>
-                            <option value="active">Active</option>
-                            <option value="pending">Pending</option>
+                          <input className="sf-input text-xs" value={ev.event} onChange={e => updateTl(i,"event",e.target.value)} placeholder="Event title" />
+                          <input className="sf-input text-xs" value={ev.date} onChange={e => updateTl(i,"date",e.target.value)} placeholder="Mar 8, 2026" />
+                          <input className="sf-input text-xs" value={ev.time} onChange={e => updateTl(i,"time",e.target.value)} placeholder="08:00 UTC" />
+                          <select className="sf-input text-xs" value={ev.status} onChange={e => updateTl(i,"status",e.target.value)}>
+                            <option value="done">Done</option><option value="active">Active</option><option value="pending">Pending</option>
                           </select>
                         </div>
-                        <input className="sf-input text-xs w-full" value={ev.detail} onChange={(e) => updateTl(i, "detail", e.target.value)} placeholder="Detail description" />
+                        <input className="sf-input text-xs w-full" value={ev.detail} onChange={e => updateTl(i,"detail",e.target.value)} placeholder="Detail description" />
                         <div className="flex justify-between items-center">
-                          <input className="sf-input text-xs w-16" value={ev.icon} onChange={(e) => updateTl(i, "icon", e.target.value)} placeholder="📋" />
+                          <input className="sf-input text-xs w-16" value={ev.icon} onChange={e => updateTl(i,"icon",e.target.value)} placeholder="📋" />
                           <button onClick={() => removeTl(i)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
                         </div>
                       </div>
                     ))}
-                    {timeline.length === 0 && <p className="text-xs text-white/30 text-center py-3">No timeline events yet.</p>}
+                    {timeline.length === 0 && <p className="text-xs text-white/30 text-center py-3">No timeline events.</p>}
                   </div>
                 </div>
                 <div>
@@ -457,25 +687,25 @@ export default function AdminUsersPage() {
                     <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>EVIDENCE FILES</p>
                     <button onClick={addEvidence} className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>+ Add</button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
                     {evidence.map((ev, i) => (
                       <div key={i} className="grid grid-cols-2 gap-2 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-                        <input className="sf-input text-xs col-span-2" value={ev.name} onChange={(e) => updateEv(i, "name", e.target.value)} placeholder="Document name" />
-                        <input className="sf-input text-xs" value={ev.type} onChange={(e) => updateEv(i, "type", e.target.value)} placeholder="PDF" />
-                        <input className="sf-input text-xs" value={ev.size} onChange={(e) => updateEv(i, "size", e.target.value)} placeholder="2.1 MB" />
-                        <input className="sf-input text-xs" value={ev.date} onChange={(e) => updateEv(i, "date", e.target.value)} placeholder="Mar 8, 2026" />
+                        <input className="sf-input text-xs col-span-2" value={ev.name} onChange={e => updateEv(i,"name",e.target.value)} placeholder="Document name" />
+                        <input className="sf-input text-xs" value={ev.type} onChange={e => updateEv(i,"type",e.target.value)} placeholder="PDF" />
+                        <input className="sf-input text-xs" value={ev.size} onChange={e => updateEv(i,"size",e.target.value)} placeholder="2.1 MB" />
+                        <input className="sf-input text-xs" value={ev.date} onChange={e => updateEv(i,"date",e.target.value)} placeholder="Mar 8, 2026" />
                         <button onClick={() => removeEv(i)} className="text-xs text-red-400 hover:text-red-300 text-left">Remove</button>
                       </div>
                     ))}
-                    {evidence.length === 0 && <p className="text-xs text-white/30 text-center py-3">No evidence files yet.</p>}
+                    {evidence.length === 0 && <p className="text-xs text-white/30 text-center py-3">No evidence files.</p>}
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 border-t" style={{ borderColor: "var(--glass-border)" }}>
               <button onClick={() => setEditUser(null)} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white border transition-colors" style={{ borderColor: "var(--glass-border)" }}>Cancel</button>
-              <button onClick={editMode === "profile" ? handleEditSave : editMode === "assets" ? handleAssetsSave : handleRecoverySave} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity hover:opacity-80" style={{ background: "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))", color: "#04060d" }}>
+              <button onClick={getSaveHandler()} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity hover:opacity-80" style={{ background: "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))", color: "#04060d" }}>
                 {saving ? <Spinner /> : "Save Changes"}
               </button>
             </div>

@@ -123,6 +123,34 @@ export async function handleAdmin(
     return cors(json({ ok: true }));
   }
 
+  // DELETE /api/admin/users/:id — delete user and all their data
+  if (sub === "users" && id && !action && request.method === "DELETE") {
+    const users = await getUsers(env);
+    const user = users.find((u) => u.id === id);
+    if (!user) return cors(json({ error: "User not found" }, 404));
+    const remaining = users.filter((u) => u.id !== id);
+    await saveUsers(env, remaining);
+    // Purge all user KV data
+    await Promise.all([
+      env.SENTRY_KV.delete(`assets:${id}`),
+      env.SENTRY_KV.delete(`transactions:${id}`),
+      env.SENTRY_KV.delete(`accounts:${id}`),
+      env.SENTRY_KV.delete(`linkedbanks:${id}`),
+      env.SENTRY_KV.delete(`cards:${id}`),
+      env.SENTRY_KV.delete(`timeline:${id}`),
+      env.SENTRY_KV.delete(`evidence:${id}`),
+      env.SENTRY_KV.delete(`settings:${id}`),
+    ]);
+    return cors(json({ ok: true }));
+  }
+
+  // DELETE /api/admin/users/:id/sessions — terminate all active sessions
+  if (sub === "users" && id && action === "sessions" && request.method === "DELETE") {
+    // KV doesn't support prefix scan in free tier; we store a flag to invalidate sessions
+    await env.SENTRY_KV.put(`sessions_invalidated:${id}`, String(Date.now()), { expirationTtl: 60 * 60 * 24 * 7 });
+    return cors(json({ ok: true }));
+  }
+
   // GET /api/admin/users/:id/assets
   if (sub === "users" && id && action === "assets" && request.method === "GET") {
     const raw = await env.SENTRY_KV.get(`assets:${id}`);
@@ -144,6 +172,27 @@ export async function handleAdmin(
       await saveUsers(env, users);
     }
     return cors(json({ ok: true, assets: body.assets }));
+  }
+
+  // GET /api/admin/users/:id/linkedbanks
+  if (sub === "users" && id && action === "linkedbanks" && request.method === "GET") {
+    const raw = await env.SENTRY_KV.get(`linkedbanks:${id}`);
+    const linkedBanks = raw ? JSON.parse(raw) : [];
+    return cors(json({ linkedBanks }));
+  }
+
+  // GET /api/admin/users/:id/cards
+  if (sub === "users" && id && action === "cards" && request.method === "GET") {
+    const raw = await env.SENTRY_KV.get(`cards:${id}`);
+    const cards = raw ? JSON.parse(raw) : [];
+    return cors(json({ cards }));
+  }
+
+  // GET /api/admin/users/:id/transactions
+  if (sub === "users" && id && action === "transactions" && request.method === "GET") {
+    const raw = await env.SENTRY_KV.get(`transactions:${id}`);
+    const transactions = raw ? JSON.parse(raw) : [];
+    return cors(json({ transactions }));
   }
 
   // GET /api/admin/users/:id/timeline

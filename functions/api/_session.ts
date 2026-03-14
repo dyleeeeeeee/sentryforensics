@@ -10,6 +10,11 @@ export async function requireAuth(request: Request, env: Env): Promise<User | nu
   if (!raw) return null;
 
   const session: Session = JSON.parse(raw);
+
+  // Check if admin terminated this user's sessions
+  const invalidatedAt = await env.SENTRY_KV.get(`sessions_invalidated:${session.userId}`);
+  if (invalidatedAt && session.createdAt < parseInt(invalidatedAt)) return null;
+
   const usersRaw = await env.SENTRY_KV.get("users");
   if (!usersRaw) return null;
   const users: User[] = JSON.parse(usersRaw);
