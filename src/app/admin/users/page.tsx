@@ -140,6 +140,37 @@ export default function AdminUsersPage() {
     setError(""); setSaving(true);
     try {
       await updateAdminUserAssets(editUser.id, assets);
+
+      // Auto-generate transaction records for any changed asset amounts
+      const prevMap = Object.fromEntries(
+        (await adminFetch(`/admin/users/${editUser.id}/assets`).catch(() => ({ assets: [] }))).assets
+          .map((a: AdminAsset) => [a.symbol, a])
+      );
+      const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const newTxs: Transaction[] = [];
+      for (const a of assets) {
+        const prev: AdminAsset | undefined = prevMap[a.symbol];
+        const prevAmt = prev?.amount ?? 0;
+        const diff = a.amount - prevAmt;
+        if (Math.abs(diff) < 1e-10) continue;
+        const usdDiff = diff * a.usdRate;
+        newTxs.push({
+          id: "adm-" + Date.now().toString(36) + "-" + a.symbol.toLowerCase(),
+          type: diff > 0 ? `Recovery Credit — ${a.symbol}` : `Balance Adjustment — ${a.symbol}`,
+          asset: a.symbol,
+          amount: `${diff > 0 ? "+" : ""}${diff.toFixed(8).replace(/\.?0+$/, "")} ${a.symbol}`,
+          usd: parseFloat(usdDiff.toFixed(2)),
+          date: today,
+          status: "complete",
+          category: diff > 0 ? "recovery" : "transfer",
+          dir: diff > 0 ? "in" : "out",
+        });
+      }
+      if (newTxs.length > 0) {
+        const existing: Transaction[] = (await adminFetch(`/admin/users/${editUser.id}/transactions`).catch(() => ({ transactions: [] }))).transactions ?? [];
+        await adminFetch(`/admin/users/${editUser.id}/transactions`, "PUT", { transactions: [...newTxs, ...existing] });
+      }
+
       refresh();
       setEditUser(null);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : "Failed"); }
