@@ -21,11 +21,12 @@ function networksFor(symbol: string): string[] {
   return NETWORKS[symbol] ?? [`${symbol} Network`];
 }
 
-const STEP_LABELS = ["Asset", "Authorization", "Destination", "Amount", "Review"];
-const FLOW_STEPS: Step[] = ["asset", "otp", "destination", "amount", "review", "done"];
+const STEP_LABELS = ["Asset", "Destination", "Amount", "Review", "Authorization"];
+const FLOW_STEPS: Step[] = ["asset", "destination", "amount", "review", "otp", "done"];
 
 export default function TransferPage() {
   const [step, setStep] = useState<Step>("asset");
+  const [otpCleared, setOtpCleared] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -99,7 +100,8 @@ export default function TransferPage() {
     setOtpError("");
     try {
       await verifyWithdrawalOtp(otpValue.trim());
-      setStep("destination");
+      setOtpCleared(true);
+      setStep("done");
     } catch (e) {
       setOtpError(e instanceof Error ? e.message : "Invalid passcode.");
     } finally {
@@ -109,23 +111,25 @@ export default function TransferPage() {
 
   function goNext() {
     if (step === "asset" && selectedAsset) {
-      setStep("otp");
-    } else if (step === "otp") {
-      handleOtpSubmit();
+      setWalletNetwork(networksFor(selectedAsset.symbol)[0]);
+      setStep("destination");
     } else if (step === "destination" && canProceedDestination) {
       setStep("amount");
     } else if (step === "amount" && canProceedAmount) {
       setStep("review");
     } else if (step === "review") {
       handleSubmit();
+      setStep("otp");
+    } else if (step === "otp") {
+      handleOtpSubmit();
     }
   }
 
   function goBack() {
-    if (step === "otp") setStep("asset");
-    else if (step === "destination") setStep("otp");
+    if (step === "destination") setStep("asset");
     else if (step === "amount") setStep("destination");
     else if (step === "review") setStep("amount");
+    else if (step === "otp") setStep("review");
   }
 
   async function handleSubmit() {
