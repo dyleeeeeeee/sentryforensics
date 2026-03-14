@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getStoredUser, type StoredUser } from "@/lib/api";
+import { getStoredUser, logout, type StoredUser } from "@/lib/api";
 
 export default function BankingLayoutInner({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<StoredUser | null>(null);
@@ -79,6 +79,12 @@ const navItems = [
 function BankingLayoutShell({ children, user, initials }: { children: React.ReactNode; user: StoredUser | null; initials: string }) { // eslint-disable-line @typescript-eslint/no-unused-vars
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    try { await logout(); } catch { /* ignore */ }
+    router.push("/banking");
+  }
 
   return (
     <div className="flex min-h-screen" style={{ fontFamily: "var(--font-body)" }}>
@@ -139,9 +145,19 @@ function BankingLayoutShell({ children, user, initials }: { children: React.Reac
         </nav>
 
         {/* Footer */}
-        <div className="p-3" style={{ borderTop: "1px solid var(--glass-border)" }}>
-          <Link href="/" className="banking-nav-item justify-center gap-1.5 text-xs text-white/30 hover:text-white/60">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <div className="p-3 space-y-1" style={{ borderTop: "1px solid var(--glass-border)" }}>
+          <button
+            onClick={handleLogout}
+            className="banking-nav-item w-full justify-start gap-2 text-xs text-red-400/70 hover:text-red-400 hover:bg-red-400/5 transition-all">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Sign Out
+          </button>
+          <Link href="/" className="banking-nav-item justify-start gap-2 text-xs text-white/25 hover:text-white/50">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
             Back to main site
@@ -164,14 +180,18 @@ function BankingLayoutShell({ children, user, initials }: { children: React.Reac
             <span className="mx-2 text-white/15">/</span>
             <span style={{ color: "var(--gold-300)" }}>PRIVATE BANKING PORTAL</span>
           </div>
-          <div className="flex items-center gap-3 ml-auto">
-            <button className="relative p-2 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/5 transition-all">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400/70 hover:text-red-400 hover:bg-red-400/5 transition-all">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
-              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent-teal)" }}/>
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
-            <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold cursor-pointer"
+            <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold"
               style={{ background: "linear-gradient(135deg, var(--accent-teal), var(--accent-violet))", color: "#04060d" }}>
               {initials}
             </div>
