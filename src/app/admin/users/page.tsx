@@ -62,6 +62,7 @@ export default function AdminUsersPage() {
   const [editForm, setEditForm] = useState({ name: "", email: "", password: "", maskedPhone: "", role: "client" as "client" | "admin", recoveredUsd: "", recoveryRate: "", recoveryComplete: false, openedDate: "", closedDate: "", originalClaim: "", recoveryDays: "", networksTraced: "", withdrawalOtp: "" });
   const [assets, setAssets] = useState<AdminAsset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
+  const [usdInputs, setUsdInputs] = useState<Record<string, string>>({});
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [evidence, setEvidence] = useState<EvidenceFile[]>([]);
   const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
@@ -96,7 +97,9 @@ export default function AdminUsersPage() {
         adminFetch(`/admin/users/${u.id}/cards`).catch(() => ({ cards: [] })),
         adminFetch(`/admin/users/${u.id}/transactions`).catch(() => ({ transactions: [] })),
       ]);
-      setAssets(assetsRes.assets ?? []);
+      const fetched = assetsRes.assets ?? [];
+      setAssets(fetched);
+      setUsdInputs(Object.fromEntries(fetched.map((a: AdminAsset) => [a.symbol, String(+(a.amount * a.usdRate).toFixed(2))])));
       setTimeline((tlRaw as {timeline: TimelineEvent[]}).timeline ?? []);
       setEvidence((evRaw as {evidence: EvidenceFile[]}).evidence ?? []);
       setLinkedBanks((banksRaw as {linkedBanks: LinkedBank[]}).linkedBanks ?? []);
@@ -220,13 +223,25 @@ export default function AdminUsersPage() {
     const preset = ASSET_PRESETS.find((p) => p.symbol === symbol);
     if (!preset) return;
     setAssets([...assets, { ...preset, amount: 0, usd: 0 }]);
+    setUsdInputs(prev => ({ ...prev, [symbol]: "" }));
   };
 
-  const updateAssetAmount = (symbol: string, amount: number) => {
-    setAssets(assets.map((a) => a.symbol === symbol ? { ...a, amount, usd: +(amount * a.usdRate).toFixed(2) } : a));
+  const updateAssetUsd = (symbol: string, raw: string) => {
+    setUsdInputs(prev => ({ ...prev, [symbol]: raw }));
+    const usd = parseFloat(raw);
+    if (!isNaN(usd) && usd >= 0) {
+      setAssets(assets.map(a => {
+        if (a.symbol !== symbol) return a;
+        const coinAmount = a.usdRate > 0 ? +(usd / a.usdRate).toFixed(8) : 0;
+        return { ...a, amount: coinAmount, usd: +usd.toFixed(2) };
+      }));
+    }
   };
 
-  const removeAsset = (symbol: string) => setAssets(assets.filter((a) => a.symbol !== symbol));
+  const removeAsset = (symbol: string) => {
+    setAssets(assets.filter((a) => a.symbol !== symbol));
+    setUsdInputs(prev => { const n = { ...prev }; delete n[symbol]; return n; });
+  };
 
   // Banks
   const addBank = () => setLinkedBanks([...linkedBanks, { id: "b" + Date.now().toString(36), name: "", number: "••••0000", type: "Checking", verified: false, country: "🇺🇸" }]);
@@ -510,14 +525,31 @@ export default function AdminUsersPage() {
                 {assetsLoading ? <div className="flex justify-center py-6"><Spinner /></div> : <>
                   <div className="space-y-2">
                     {assets.map(a => (
-                      <div key={a.symbol} className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-                        <span className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: a.color+"20", color: a.color }}>{a.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-white">{a.name} <span className="text-white/40">({a.symbol})</span></p>
-                          <p className="text-xs text-white/30">${(a.amount * a.usdRate).toLocaleString(undefined,{maximumFractionDigits:2})} USD</p>
+                      <div key={a.symbol} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
+                        <div className="flex items-center gap-2">
+                          <span className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: a.color+"20", color: a.color }}>{a.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-white">{a.name} <span className="text-white/40">({a.symbol})</span></p>
+                            <p className="text-[10px] text-white/30">@ ${a.usdRate.toLocaleString()} per {a.symbol}</p>
+                          </div>
+                          <button onClick={() => removeAsset(a.symbol)} className="text-white/30 hover:text-red-400 text-lg leading-none shrink-0">×</button>
                         </div>
-                        <input type="number" min="0" step="any" value={a.amount} onChange={e => updateAssetAmount(a.symbol, parseFloat(e.target.value)||0)} className="sf-input w-24 sm:w-28 text-right text-sm min-w-0" />
-                        <button onClick={() => removeAsset(a.symbol)} className="text-white/30 hover:text-red-400 text-lg leading-none shrink-0">×</button>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40">$</span>
+                            <input
+                              type="number" min="0" step="any"
+                              placeholder="Enter USD value"
+                              value={usdInputs[a.symbol] ?? ""}
+                              onChange={e => updateAssetUsd(a.symbol, e.target.value)}
+                              className="sf-input pl-6 w-full text-sm"
+                            />
+                          </div>
+                          <div className="text-right shrink-0 min-w-[80px]">
+                            <p className="text-xs font-semibold text-white" style={{ fontFamily: "var(--font-mono)" }}>{a.amount > 0 ? a.amount.toLocaleString(undefined, {maximumFractionDigits: 8}) : "—"}</p>
+                            <p className="text-[10px] text-white/30">{a.symbol}</p>
+                          </div>
+                        </div>
                       </div>
                     ))}
                     {assets.length === 0 && <p className="text-xs text-white/30 text-center py-4">No assets. Add one below.</p>}
