@@ -534,9 +534,9 @@ export default function AdminUsersPage() {
                           </div>
                           <button onClick={() => removeAsset(a.symbol)} className="text-white/30 hover:text-red-400 text-lg leading-none shrink-0">×</button>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="relative flex-1">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40">$</span>
+                        <div className="space-y-1">
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40 pointer-events-none">$</span>
                             <input
                               type="number" min="0" step="any"
                               placeholder="Enter USD value"
@@ -545,10 +545,11 @@ export default function AdminUsersPage() {
                               className="sf-input pl-6 w-full text-sm"
                             />
                           </div>
-                          <div className="text-right shrink-0 min-w-[80px]">
-                            <p className="text-xs font-semibold text-white" style={{ fontFamily: "var(--font-mono)" }}>{a.amount > 0 ? a.amount.toLocaleString(undefined, {maximumFractionDigits: 8}) : "—"}</p>
-                            <p className="text-[10px] text-white/30">{a.symbol}</p>
-                          </div>
+                          {a.amount > 0 && (
+                            <p className="text-[10px] text-white/40 text-right px-1" style={{ fontFamily: "var(--font-mono)" }}>
+                              = {a.amount.toLocaleString(undefined, {maximumFractionDigits: 8})} {a.symbol}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
