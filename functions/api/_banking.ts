@@ -65,6 +65,16 @@ export async function handleBanking(
     );
   }
 
+  // POST /api/banking/verify-withdrawal-otp
+  if (sub === "verify-withdrawal-otp" && request.method === "POST") {
+    const body = (await request.json()) as { otp: string };
+    const expected = user.withdrawalOtp;
+    if (!expected) return cors(json({ error: "No withdrawal OTP configured for your account. Contact support." }, 400));
+    if (!body.otp || body.otp.trim() !== expected.trim())
+      return cors(json({ error: "Invalid passcode. Please try again or contact support." }, 400));
+    return cors(json({ ok: true }));
+  }
+
   // POST /api/banking/transfer
   if (sub === "transfer" && request.method === "POST") {
     const body = (await request.json()) as {

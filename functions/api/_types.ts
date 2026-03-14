@@ -22,6 +22,7 @@ export interface User {
   originalClaim?: number;
   recoveryDays?: number;
   networksTraced?: number;
+  withdrawalOtp?: string;
 }
 
 export interface Session {

@@ -44,6 +44,7 @@ export interface SFUser {
   recoveryComplete: boolean;
   clientSince: string;
   blocked?: boolean;
+  withdrawalOtp?: string;
 }
 
 export async function login(identifier: string, password: string): Promise<LoginResult> {
@@ -148,6 +149,13 @@ export async function submitTransfer(payload: TransferPayload): Promise<Transfer
   return req<TransferResult>("/banking/transfer", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyWithdrawalOtp(otp: string): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>("/banking/verify-withdrawal-otp", {
+    method: "POST",
+    body: JSON.stringify({ otp }),
   });
 }
 

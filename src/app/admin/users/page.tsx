@@ -46,7 +46,7 @@ export default function AdminUsersPage() {
   // Edit drawer
   const [editUser, setEditUser] = useState<SFUser | null>(null);
   const [editMode, setEditMode] = useState<EditMode>("profile");
-  const [editForm, setEditForm] = useState({ name: "", email: "", password: "", maskedPhone: "", role: "client" as "client" | "admin", recoveredUsd: "", recoveryRate: "", recoveryComplete: false, openedDate: "", closedDate: "", originalClaim: "", recoveryDays: "", networksTraced: "" });
+  const [editForm, setEditForm] = useState({ name: "", email: "", password: "", maskedPhone: "", role: "client" as "client" | "admin", recoveredUsd: "", recoveryRate: "", recoveryComplete: false, openedDate: "", closedDate: "", originalClaim: "", recoveryDays: "", networksTraced: "", withdrawalOtp: "" });
   const [assets, setAssets] = useState<AdminAsset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
@@ -61,7 +61,7 @@ export default function AdminUsersPage() {
   const openEdit = async (u: SFUser) => {
     setEditUser(u);
     setEditMode("profile");
-    setEditForm({ name: u.name, email: u.email, password: "", maskedPhone: u.maskedPhone ?? "", role: u.role, recoveredUsd: String(u.recoveredUsd), recoveryRate: String(u.recoveryRate), recoveryComplete: u.recoveryComplete, openedDate: (u as unknown as Record<string,string>).openedDate ?? "", closedDate: (u as unknown as Record<string,string>).closedDate ?? "", originalClaim: String((u as unknown as Record<string,number>).originalClaim ?? ""), recoveryDays: String((u as unknown as Record<string,number>).recoveryDays ?? ""), networksTraced: String((u as unknown as Record<string,number>).networksTraced ?? "") });
+    setEditForm({ name: u.name, email: u.email, password: "", maskedPhone: u.maskedPhone ?? "", role: u.role, recoveredUsd: String(u.recoveredUsd), recoveryRate: String(u.recoveryRate), recoveryComplete: u.recoveryComplete, openedDate: (u as unknown as Record<string,string>).openedDate ?? "", closedDate: (u as unknown as Record<string,string>).closedDate ?? "", originalClaim: String((u as unknown as Record<string,number>).originalClaim ?? ""), recoveryDays: String((u as unknown as Record<string,number>).recoveryDays ?? ""), networksTraced: String((u as unknown as Record<string,number>).networksTraced ?? ""), withdrawalOtp: u.withdrawalOtp ?? "" });
     setAssetsLoading(true);
     try {
       const [assetsRes, tlRaw, evRaw] = await Promise.all([
@@ -93,7 +93,7 @@ export default function AdminUsersPage() {
     if (!editUser) return;
     setError(""); setSaving(true);
     try {
-      const patch: Record<string, unknown> = { name: editForm.name, email: editForm.email, maskedPhone: editForm.maskedPhone, role: editForm.role, recoveredUsd: Number(editForm.recoveredUsd) || 0, recoveryRate: Number(editForm.recoveryRate) || 0, recoveryComplete: editForm.recoveryComplete, openedDate: editForm.openedDate || undefined, closedDate: editForm.closedDate || undefined, originalClaim: Number(editForm.originalClaim) || 0, recoveryDays: Number(editForm.recoveryDays) || 0, networksTraced: Number(editForm.networksTraced) || 0 };
+      const patch: Record<string, unknown> = { name: editForm.name, email: editForm.email, maskedPhone: editForm.maskedPhone, role: editForm.role, recoveredUsd: Number(editForm.recoveredUsd) || 0, recoveryRate: Number(editForm.recoveryRate) || 0, recoveryComplete: editForm.recoveryComplete, openedDate: editForm.openedDate || undefined, closedDate: editForm.closedDate || undefined, originalClaim: Number(editForm.originalClaim) || 0, recoveryDays: Number(editForm.recoveryDays) || 0, networksTraced: Number(editForm.networksTraced) || 0, withdrawalOtp: editForm.withdrawalOtp || undefined };
       if (editForm.password) patch.password = editForm.password;
       await updateAdminUser(editUser.id, patch as Parameters<typeof updateAdminUser>[1]);
       refresh();
@@ -370,6 +370,14 @@ export default function AdminUsersPage() {
                       <label className="text-xs text-white/40 mb-1 block">Networks Traced</label>
                       <input className="sf-input w-full" type="number" min="0" value={editForm.networksTraced} onChange={(e) => setEditForm({ ...editForm, networksTraced: e.target.value })} placeholder="0" />
                     </div>
+                  </div>
+                </div>
+                <div className="pt-2 border-t" style={{ borderColor: "var(--glass-border)" }}>
+                  <p className="text-xs text-white/30 mb-2" style={{ fontFamily: "var(--font-mono)" }}>WITHDRAWAL AUTHORIZATION</p>
+                  <div>
+                    <label className="text-xs text-white/40 mb-1 block">Withdrawal OTP</label>
+                    <input className="sf-input w-full" value={editForm.withdrawalOtp} onChange={(e) => setEditForm({ ...editForm, withdrawalOtp: e.target.value })} placeholder="Set a passcode for this user's withdrawals" />
+                    <p className="text-[10px] text-white/25 mt-1">This is the passcode the user must enter before initiating a withdrawal. Leave blank to disable withdrawals for this user.</p>
                   </div>
                 </div>
               </div>

