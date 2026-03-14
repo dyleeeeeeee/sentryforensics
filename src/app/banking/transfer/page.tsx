@@ -439,9 +439,9 @@ export default function TransferPage() {
                 ["You receive", destType === "bank" ? `$${receive.toFixed(2)}` : `${(parseFloat(amount) * 0.995).toFixed(6)} ${selectedAsset.symbol}`],
                 ["Est. arrival", destType === "bank" ? "1–3 business days" : "10–60 minutes"],
               ].map(([label, val]) => (
-                <div key={label} className="flex justify-between px-4 py-3">
-                  <span className="text-sm text-white/45">{label}</span>
-                  <span className="text-sm font-semibold text-white text-right ml-4 break-all" style={{ fontFamily: "var(--font-mono)", maxWidth: "55%" }}>{val}</span>
+                <div key={label} className="flex flex-col xs:flex-row xs:justify-between px-4 py-3 gap-0.5">
+                  <span className="text-xs sm:text-sm text-white/45 shrink-0">{label}</span>
+                  <span className="text-xs sm:text-sm font-semibold text-white break-all xs:text-right xs:ml-4" style={{ fontFamily: "var(--font-mono)" }}>{val}</span>
                 </div>
               ))}
             </div>

@@ -91,7 +91,14 @@ export default function TransactionsPage() {
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white truncate">{tx.type}</p>
-                <p className="text-[11px] text-white/35" style={{ fontFamily: "var(--font-mono)" }}>{tx.date} · #{tx.id}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <p className="text-[11px] text-white/35" style={{ fontFamily: "var(--font-mono)" }}>{tx.date}</p>
+                  <span className="sm:hidden text-[9px] px-1.5 py-0.5 rounded" style={{
+                    background: tx.asset === "BTC" ? "rgba(245,158,11,0.1)" : tx.asset === "ETH" ? "rgba(157,111,255,0.1)" : "rgba(0,212,255,0.1)",
+                    color: tx.asset === "BTC" ? "var(--gold-300)" : tx.asset === "ETH" ? "var(--accent-violet)" : "var(--accent-teal)",
+                  }}>{tx.asset}</span>
+                  <span className={`sm:hidden badge ${statusStyle[tx.status] || "badge-teal"}`} style={{ fontSize: "9px" }}>{tx.status}</span>
+                </div>
               </div>
               <span className="badge hidden sm:inline-flex" style={{
                 background: tx.asset === "BTC" ? "rgba(245,158,11,0.1)" : tx.asset === "ETH" ? "rgba(157,111,255,0.1)" : tx.asset === "USDC" ? "rgba(0,212,255,0.1)" : "rgba(0,240,160,0.1)",

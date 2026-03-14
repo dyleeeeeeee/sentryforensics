@@ -204,16 +204,16 @@ export default function DashboardPage() {
                   {tx.dir === "in" ? "↓" : "↑"}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">{tx.type}</p>
+                  <p className="text-sm font-medium text-white truncate">{tx.type}</p>
                   <p className="text-[11px] text-white/35">{tx.date}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <p className="text-sm font-semibold" style={{ fontFamily: "var(--font-mono)", color: tx.dir === "in" ? "var(--accent-emerald)" : "#ff6680" }}>
                     {tx.amount}
                   </p>
-                  <p className="text-[11px] text-white/35">{tx.usd}</p>
+                  <p className="text-[11px] text-white/35 hidden sm:block">{tx.usd}</p>
                 </div>
-                <span className={`badge flex-shrink-0 ${tx.status === "complete" ? "badge-success" : "badge-warning"}`}
+                <span className={`badge flex-shrink-0 hidden sm:inline-flex ${tx.status === "complete" ? "badge-success" : "badge-warning"}`}
                   style={{ fontSize: "9px" }}>
                   {tx.status}
                 </span>

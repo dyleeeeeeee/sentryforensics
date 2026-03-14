@@ -327,15 +327,15 @@ export default function AdminUsersPage() {
                     <p className="text-sm font-semibold" style={{ color: "var(--accent-emerald)" }}>${u.recoveredUsd.toLocaleString()}</p>
                     <p className="text-xs text-white/30">{u.recoveryRate}%</p>
                   </div>
-                  <div className="flex gap-1 shrink-0 flex-wrap justify-end">
+                  <div className="flex gap-1 shrink-0 flex-col sm:flex-row items-end sm:items-center">
                     <button onClick={() => openEdit(u)} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(0,212,255,0.1)", color: "var(--accent-teal)" }}>Edit</button>
                     <button onClick={() => handleBlock(u)} disabled={saving} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: u.blocked ? "rgba(0,255,136,0.1)" : "rgba(239,68,68,0.1)", color: u.blocked ? "var(--accent-emerald)" : "#f87171" }}>
                       {u.blocked ? "Unblock" : "Block"}
                     </button>
-                    <button onClick={() => handleTerminateSessions(u)} disabled={saving} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }} title="Force logout all active sessions">
+                    <button onClick={() => handleTerminateSessions(u)} disabled={saving} className="hidden sm:block px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }} title="Force logout all active sessions">
                       Kick
                     </button>
-                    <button onClick={() => setConfirmDelete(u)} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171" }} title="Permanently delete user">
+                    <button onClick={() => setConfirmDelete(u)} className="hidden sm:block px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171" }} title="Permanently delete user">
                       Delete
                     </button>
                   </div>
@@ -428,25 +428,25 @@ export default function AdminUsersPage() {
       {/* ── Edit User Drawer ── */}
       {editUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(4,6,13,0.85)", backdropFilter: "blur(8px)" }}>
-          <div className="glass-card rounded-2xl w-full max-w-2xl p-6 space-y-5 max-h-[92vh] overflow-y-auto">
+          <div className="glass-card rounded-2xl w-full max-w-2xl p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[92vh] overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>{editUser.name}</h2>
-                <p className="text-xs text-white/40" style={{ fontFamily: "var(--font-mono)" }}>{editUser.caseId} · {editUser.email}</p>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-white truncate" style={{ fontFamily: "var(--font-display)" }}>{editUser.name}</h2>
+                <p className="text-xs text-white/40 truncate" style={{ fontFamily: "var(--font-mono)" }}>{editUser.caseId} · {editUser.email}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => handleTerminateSessions(editUser)} disabled={saving} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }} title="Force logout">Kick</button>
-                <button onClick={() => { setEditUser(null); setConfirmDelete(editUser); }} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>Delete</button>
-                <button onClick={() => setEditUser(null)} className="text-white/40 hover:text-white text-xl leading-none ml-1">×</button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button onClick={() => handleTerminateSessions(editUser)} disabled={saving} className="px-2 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }} title="Force logout">Kick</button>
+                <button onClick={() => { setEditUser(null); setConfirmDelete(editUser); }} className="px-2 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>Del</button>
+                <button onClick={() => setEditUser(null)} className="text-white/40 hover:text-white text-xl leading-none">×</button>
               </div>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: "rgba(255,255,255,0.04)" }}>
+            <div className="flex gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none" style={{ background: "rgba(255,255,255,0.04)" }}>
               {(["profile", "assets", "banks", "cards", "transactions", "recovery"] as EditMode[]).map((m) => (
                 <button key={m} onClick={() => setEditMode(m)}
-                  className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all"
+                  className="flex-shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold capitalize transition-all whitespace-nowrap"
                   style={{ background: editMode === m ? "rgba(0,212,255,0.15)" : "transparent", color: editMode === m ? "var(--accent-teal)" : "rgba(255,255,255,0.4)" }}>
                   {m}
                 </button>
@@ -510,14 +510,14 @@ export default function AdminUsersPage() {
                 {assetsLoading ? <div className="flex justify-center py-6"><Spinner /></div> : <>
                   <div className="space-y-2">
                     {assets.map(a => (
-                      <div key={a.symbol} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <div key={a.symbol} className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
                         <span className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: a.color+"20", color: a.color }}>{a.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-white">{a.name} ({a.symbol})</p>
+                          <p className="text-xs font-semibold text-white">{a.name} <span className="text-white/40">({a.symbol})</span></p>
                           <p className="text-xs text-white/30">${(a.amount * a.usdRate).toLocaleString(undefined,{maximumFractionDigits:2})} USD</p>
                         </div>
-                        <input type="number" min="0" step="any" value={a.amount} onChange={e => updateAssetAmount(a.symbol, parseFloat(e.target.value)||0)} className="sf-input w-28 text-right text-sm" />
-                        <button onClick={() => removeAsset(a.symbol)} className="text-white/30 hover:text-red-400 text-lg leading-none">×</button>
+                        <input type="number" min="0" step="any" value={a.amount} onChange={e => updateAssetAmount(a.symbol, parseFloat(e.target.value)||0)} className="sf-input w-24 sm:w-28 text-right text-sm min-w-0" />
+                        <button onClick={() => removeAsset(a.symbol)} className="text-white/30 hover:text-red-400 text-lg leading-none shrink-0">×</button>
                       </div>
                     ))}
                     {assets.length === 0 && <p className="text-xs text-white/30 text-center py-4">No assets. Add one below.</p>}
@@ -547,8 +547,8 @@ export default function AdminUsersPage() {
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {linkedBanks.map((b, i) => (
                     <div key={b.id} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Bank Name</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="sm:col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Bank Name</label>
                           <input className="sf-input text-xs w-full" value={b.name} onChange={e => updateBank(i, "name", e.target.value)} placeholder="Chase Bank" /></div>
                         <div><label className="text-[10px] text-white/30 mb-0.5 block">Account Number</label>
                           <input className="sf-input text-xs w-full" value={b.number} onChange={e => updateBank(i, "number", e.target.value)} placeholder="••••1234" /></div>
@@ -558,7 +558,7 @@ export default function AdminUsersPage() {
                           </select></div>
                         <div><label className="text-[10px] text-white/30 mb-0.5 block">Country Flag</label>
                           <input className="sf-input text-xs w-full" value={b.country} onChange={e => updateBank(i, "country", e.target.value)} placeholder="🇺🇸" /></div>
-                        <div className="flex items-center gap-2 pt-1">
+                        <div className="flex items-center gap-2">
                           <input type="checkbox" checked={b.verified} onChange={e => updateBank(i, "verified", e.target.checked)} />
                           <span className="text-xs text-white/50">Verified</span>
                         </div>
@@ -581,10 +581,10 @@ export default function AdminUsersPage() {
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {cards.map((c, i) => (
                     <div key={c.id} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Card Label</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="sm:col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Card Label</label>
                           <input className="sf-input text-xs w-full" value={c.name} onChange={e => updateCard(i, "name", e.target.value)} placeholder="Primary Card" /></div>
-                        <div><label className="text-[10px] text-white/30 mb-0.5 block">Card Number</label>
+                        <div className="sm:col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Card Number</label>
                           <input className="sf-input text-xs w-full" value={c.number} onChange={e => updateCard(i, "number", e.target.value)} placeholder="•••• •••• •••• 0000" /></div>
                         <div><label className="text-[10px] text-white/30 mb-0.5 block">Expiry</label>
                           <input className="sf-input text-xs w-full" value={c.expiry} onChange={e => updateCard(i, "expiry", e.target.value)} placeholder="12/28" /></div>
@@ -598,7 +598,7 @@ export default function AdminUsersPage() {
                           <select className="sf-input text-xs w-full" value={c.status} onChange={e => updateCard(i, "status", e.target.value)}>
                             <option value="active">Active</option><option value="inactive">Inactive</option><option value="expired">Expired</option>
                           </select></div>
-                        <div className="flex items-center gap-2 pt-1">
+                        <div className="flex items-center gap-2">
                           <input type="checkbox" checked={c.frozen} onChange={e => updateCard(i, "frozen", e.target.checked)} />
                           <span className="text-xs text-white/50">Frozen</span>
                         </div>
@@ -621,8 +621,8 @@ export default function AdminUsersPage() {
                 <div className="space-y-2 max-h-[420px] overflow-y-auto">
                   {transactions.map((t, i) => (
                     <div key={t.id} className="p-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.04)" }}>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Description</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="sm:col-span-2"><label className="text-[10px] text-white/30 mb-0.5 block">Description</label>
                           <input className="sf-input text-xs w-full" value={t.type} onChange={e => updateTx(i, "type", e.target.value)} placeholder="Recovery Credit" /></div>
                         <div><label className="text-[10px] text-white/30 mb-0.5 block">Asset</label>
                           <input className="sf-input text-xs w-full" value={t.asset} onChange={e => updateTx(i, "asset", e.target.value)} placeholder="BTC" /></div>
