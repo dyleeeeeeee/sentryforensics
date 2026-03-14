@@ -1,13 +1,8 @@
 import type { Env, User, Asset, IntakeSubmission } from "./_types";
 import { json, cors } from "./_utils";
-import { defaultUsers, defaultAssets } from "./_defaults";
-
 async function getUsers(env: Env): Promise<User[]> {
   const raw = await env.SENTRY_KV.get("users");
-  if (raw) return JSON.parse(raw);
-  const seeded = defaultUsers();
-  await env.SENTRY_KV.put("users", JSON.stringify(seeded));
-  return seeded;
+  return raw ? JSON.parse(raw) : [];
 }
 
 async function saveUsers(env: Env, users: User[]): Promise<void> {
@@ -131,7 +126,7 @@ export async function handleAdmin(
   // GET /api/admin/users/:id/assets
   if (sub === "users" && id && action === "assets" && request.method === "GET") {
     const raw = await env.SENTRY_KV.get(`assets:${id}`);
-    const assets: Asset[] = raw ? JSON.parse(raw) : defaultAssets();
+    const assets: Asset[] = raw ? JSON.parse(raw) : [];
     return cors(json({ assets }));
   }
 

@@ -1,6 +1,5 @@
 import type { Env, User, Session } from "./_types";
 import { json, cors, extractToken } from "./_utils";
-import { defaultUsers } from "./_defaults";
 import { requireAuth } from "./_session";
 
 export async function handleAuth(
@@ -16,12 +15,8 @@ export async function handleAuth(
     if (!identifier || !password)
       return cors(json({ error: "Missing credentials" }, 400));
 
-    let usersRaw = await env.SENTRY_KV.get("users");
-    if (!usersRaw) {
-      const seeded = defaultUsers();
-      await env.SENTRY_KV.put("users", JSON.stringify(seeded));
-      usersRaw = JSON.stringify(seeded);
-    }
+    const usersRaw = await env.SENTRY_KV.get("users");
+    if (!usersRaw) return cors(json({ error: "Invalid credentials" }, 401));
     const users: User[] = JSON.parse(usersRaw);
 
     const user = users.find(

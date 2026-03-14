@@ -1,6 +1,5 @@
 import type { Env, User, Session, Asset } from "./_types";
 import { extractToken } from "./_utils";
-import { defaultUsers } from "./_defaults"; // still used for requireAuth fallback
 import { getLiveRates } from "./_rates";
 
 export async function requireAuth(request: Request, env: Env): Promise<User | null> {
@@ -12,7 +11,8 @@ export async function requireAuth(request: Request, env: Env): Promise<User | nu
 
   const session: Session = JSON.parse(raw);
   const usersRaw = await env.SENTRY_KV.get("users");
-  const users: User[] = usersRaw ? JSON.parse(usersRaw) : defaultUsers();
+  if (!usersRaw) return null;
+  const users: User[] = JSON.parse(usersRaw);
   return users.find((u) => u.id === session.userId) ?? null;
 }
 
