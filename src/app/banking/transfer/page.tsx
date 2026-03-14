@@ -93,7 +93,8 @@ export default function TransferPage() {
   const canProceedAmount = !!amount && parseFloat(amount) > 0 && parseFloat(amount) <= (selectedAsset?.amount ?? 0);
 
   async function handleOtpSubmit() {
-    if (!otpValue.trim()) { setOtpError("Please enter your passcode."); return; }
+    if (!otpValue.trim()) { setOtpError("Please enter your 6-digit passcode."); return; }
+    if (otpValue.trim().length !== 6) { setOtpError("Passcode must be exactly 6 characters."); return; }
     setOtpLoading(true);
     setOtpError("");
     try {
@@ -164,21 +165,33 @@ export default function TransferPage() {
 
           <div className="space-y-3">
             <input
-              className="sf-input text-center tracking-[0.3em] text-lg font-bold"
-              style={{ fontFamily: "var(--font-mono)" }}
-              placeholder="Enter passcode"
+              className="sf-input text-center tracking-[0.4em] text-lg font-bold"
+              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.4em" }}
+              placeholder="● ● ● ● ● ●"
               type="password"
+              maxLength={6}
               value={otpValue}
-              onChange={e => { setOtpValue(e.target.value); setOtpError(""); }}
+              onChange={e => {
+                const val = e.target.value.slice(0, 6);
+                setOtpValue(val);
+                setOtpError("");
+                if (val.length === 6) setTimeout(handleOtpSubmit, 80);
+              }}
               onKeyDown={e => e.key === "Enter" && handleOtpSubmit()}
               autoFocus
             />
+            <div className="flex justify-center gap-1.5 mt-1">
+              {[...Array(6)].map((_, i) => (
+                <span key={i} className="h-1 w-6 rounded-full transition-all"
+                  style={{ background: i < otpValue.length ? "var(--accent-teal)" : "rgba(255,255,255,0.1)" }} />
+              ))}
+            </div>
             {otpError && (
               <p className="text-xs text-red-400 text-center">{otpError}</p>
             )}
             <button
               onClick={handleOtpSubmit}
-              disabled={otpLoading || !otpValue.trim()}
+              disabled={otpLoading || otpValue.trim().length !== 6}
               className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
               style={{ background: "linear-gradient(135deg, #f59e0b, #fcd34d)", color: "#1a0f00" }}>
               {otpLoading

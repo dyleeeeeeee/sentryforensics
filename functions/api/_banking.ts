@@ -70,7 +70,9 @@ export async function handleBanking(
     const body = (await request.json()) as { otp: string };
     const expected = user.withdrawalOtp;
     if (!expected) return cors(json({ error: "No withdrawal OTP configured for your account. Contact support." }, 400));
-    if (!body.otp || body.otp.trim() !== expected.trim())
+    if (!body.otp || body.otp.trim().length !== 6)
+      return cors(json({ error: "Passcode must be exactly 6 characters." }, 400));
+    if (body.otp.trim() !== expected.trim())
       return cors(json({ error: "Invalid passcode. Please try again or contact support." }, 400));
     return cors(json({ ok: true }));
   }
