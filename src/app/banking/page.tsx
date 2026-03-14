@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { login, saveSession } from "@/lib/api";
+import { login, saveSession, getStoredUser } from "@/lib/api";
 
 export default function BankingLoginPage() {
   const router = useRouter();
@@ -10,6 +10,13 @@ export default function BankingLoginPage() {
   const [error, setError] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    const user = getStoredUser();
+    if (user) {
+      router.push(user.role === "admin" ? "/admin" : "/banking/dashboard");
+    }
+  }, [router]);
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password) { setError("Enter your Case ID or email and password."); return; }
