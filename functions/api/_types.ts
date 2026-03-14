@@ -2,6 +2,7 @@
 
 export interface Env {
   SENTRY_KV: KVNamespace;
+  COINGECKO_API_KEY?: string;
 }
 
 export interface User {

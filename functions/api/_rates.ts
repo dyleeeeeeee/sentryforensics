@@ -42,9 +42,7 @@ export async function getLiveRates(env: Env, symbols: string[]): Promise<RateMap
   try {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${allIds.join(",")}&vs_currencies=usd&precision=6`;
     const headers: Record<string, string> = { Accept: "application/json" };
-    // Use demo/pro key if configured
-    const cgKey = (env as unknown as Record<string, string>).COINGECKO_API_KEY;
-    if (cgKey) headers["x-cg-demo-api-key"] = cgKey;
+    if (env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = env.COINGECKO_API_KEY;
 
     const res = await fetch(url, {
       headers,

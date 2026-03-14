@@ -442,8 +442,9 @@ export default function AdminUsersPage() {
 
       {/* ── Edit User Drawer ── */}
       {editUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(4,6,13,0.85)", backdropFilter: "blur(8px)" }}>
-          <div className="glass-card rounded-2xl w-full max-w-2xl p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 overflow-y-auto p-4" style={{ background: "rgba(4,6,13,0.85)", backdropFilter: "blur(8px)" }}>
+          <div className="flex min-h-full items-center justify-center">
+          <div className="glass-card rounded-2xl w-full max-w-2xl p-4 sm:p-6 space-y-4 sm:space-y-5 my-4">
             {/* Header */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -742,6 +743,7 @@ export default function AdminUsersPage() {
                 {saving ? <Spinner /> : "Save Changes"}
               </button>
             </div>
+          </div>
           </div>
         </div>
       )}
