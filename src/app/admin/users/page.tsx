@@ -61,6 +61,7 @@ export default function AdminUsersPage() {
   const [editMode, setEditMode] = useState<EditMode>("profile");
   const [editForm, setEditForm] = useState({ name: "", email: "", password: "", maskedPhone: "", role: "client" as "client" | "admin", recoveredUsd: "", recoveryRate: "", recoveryComplete: false, openedDate: "", closedDate: "", originalClaim: "", recoveryDays: "", networksTraced: "", withdrawalOtp: "" });
   const [assets, setAssets] = useState<AdminAsset[]>([]);
+  const [prevAssets, setPrevAssets] = useState<AdminAsset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [usdInputs, setUsdInputs] = useState<Record<string, string>>({});
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
@@ -99,6 +100,7 @@ export default function AdminUsersPage() {
       ]);
       const fetched = assetsRes.assets ?? [];
       setAssets(fetched);
+      setPrevAssets(fetched);
       setUsdInputs(Object.fromEntries(fetched.map((a: AdminAsset) => [a.symbol, String(+(a.amount * a.usdRate).toFixed(2))])));
       setTimeline((tlRaw as {timeline: TimelineEvent[]}).timeline ?? []);
       setEvidence((evRaw as {evidence: EvidenceFile[]}).evidence ?? []);
@@ -142,10 +144,7 @@ export default function AdminUsersPage() {
       await updateAdminUserAssets(editUser.id, assets);
 
       // Auto-generate transaction records for any changed asset amounts
-      const prevMap = Object.fromEntries(
-        (await adminFetch(`/admin/users/${editUser.id}/assets`).catch(() => ({ assets: [] }))).assets
-          .map((a: AdminAsset) => [a.symbol, a])
-      );
+      const prevMap = Object.fromEntries(prevAssets.map((a) => [a.symbol, a]));
       const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
       const newTxs: Transaction[] = [];
       for (const a of assets) {
