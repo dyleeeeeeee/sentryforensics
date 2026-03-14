@@ -24,27 +24,30 @@ const CACHE_TTL = 60; // seconds
 export type RateMap = Record<string, number>; // symbol → USD price
 
 export async function getLiveRates(env: Env, symbols: string[]): Promise<RateMap> {
-  // Try KV cache first
+  // Try KV cache first — return immediately if all requested symbols are present
   const cached = await env.SENTRY_KV.get(CACHE_KEY);
   if (cached) {
     const parsed: RateMap = JSON.parse(cached);
-    // Return if all needed symbols present
     if (symbols.every((s) => s === "USD" || parsed[s] !== undefined)) {
       return parsed;
     }
   }
 
-  // Collect CoinGecko IDs for requested symbols
-  const ids = symbols
-    .filter((s) => s !== "USD" && COINGECKO_IDS[s])
-    .map((s) => COINGECKO_IDS[s]);
-
-  if (ids.length === 0) return { USD: 1 };
+  // Always fetch the full known set so the cache is maximally warm
+  const allIds = Object.values(COINGECKO_IDS);
+  // Build a reverse map: coingecko-id → symbol
+  const idToSym: Record<string, string> = {};
+  for (const [sym, id] of Object.entries(COINGECKO_IDS)) idToSym[id] = sym;
 
   try {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd`;
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${allIds.join(",")}&vs_currencies=usd&precision=6`;
+    const headers: Record<string, string> = { Accept: "application/json" };
+    // Use demo/pro key if configured
+    const cgKey = (env as unknown as Record<string, string>).COINGECKO_API_KEY;
+    if (cgKey) headers["x-cg-demo-api-key"] = cgKey;
+
     const res = await fetch(url, {
-      headers: { Accept: "application/json" },
+      headers,
       cf: { cacheTtl: CACHE_TTL, cacheEverything: true },
     } as RequestInit);
 
@@ -52,9 +55,9 @@ export async function getLiveRates(env: Env, symbols: string[]): Promise<RateMap
 
     const data = (await res.json()) as Record<string, { usd: number }>;
 
-    // Build symbol → price map
+    // Build symbol → price map only from IDs that returned data
     const rates: RateMap = { USD: 1, USDC: 1, USDT: 1 };
-    for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
+    for (const [id, sym] of Object.entries(idToSym)) {
       if (data[id]?.usd) rates[sym] = data[id].usd;
     }
 
@@ -65,8 +68,8 @@ export async function getLiveRates(env: Env, symbols: string[]): Promise<RateMap
 
     return rates;
   } catch {
-    // On failure return cached even if stale, or hardcoded fallback
+    // On failure return stale cache if available, otherwise hardcoded fallback
     if (cached) return JSON.parse(cached);
-    return { BTC: 83000, ETH: 2000, USDC: 1, USDT: 1, SOL: 130, USD: 1 };
+    return { BTC: 83000, ETH: 2000, USDC: 1, USDT: 1, SOL: 130, BNB: 600, XRP: 2.2, USD: 1 };
   }
 }
