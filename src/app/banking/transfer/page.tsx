@@ -21,11 +21,11 @@ function networksFor(symbol: string): string[] {
   return NETWORKS[symbol] ?? [`${symbol} Network`];
 }
 
-const STEP_LABELS = ["Asset", "Destination", "Amount", "Review"];
-const FLOW_STEPS: Step[] = ["asset", "destination", "amount", "review", "done"];
+const STEP_LABELS = ["Asset", "Authorization", "Destination", "Amount", "Review"];
+const FLOW_STEPS: Step[] = ["asset", "otp", "destination", "amount", "review", "done"];
 
 export default function TransferPage() {
-  const [step, setStep] = useState<Step>("otp");
+  const [step, setStep] = useState<Step>("asset");
   const [assets, setAssets] = useState<Asset[]>([]);
   const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -99,7 +99,7 @@ export default function TransferPage() {
     setOtpError("");
     try {
       await verifyWithdrawalOtp(otpValue.trim());
-      setStep("asset");
+      setStep("destination");
     } catch (e) {
       setOtpError(e instanceof Error ? e.message : "Invalid passcode.");
     } finally {
@@ -109,8 +109,9 @@ export default function TransferPage() {
 
   function goNext() {
     if (step === "asset" && selectedAsset) {
-      setWalletNetwork(networksFor(selectedAsset.symbol)[0]);
-      setStep("destination");
+      setStep("otp");
+    } else if (step === "otp") {
+      handleOtpSubmit();
     } else if (step === "destination" && canProceedDestination) {
       setStep("amount");
     } else if (step === "amount" && canProceedAmount) {
@@ -121,7 +122,8 @@ export default function TransferPage() {
   }
 
   function goBack() {
-    if (step === "destination") setStep("asset");
+    if (step === "otp") setStep("asset");
+    else if (step === "destination") setStep("otp");
     else if (step === "amount") setStep("destination");
     else if (step === "review") setStep("amount");
   }
