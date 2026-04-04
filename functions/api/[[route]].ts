@@ -42,6 +42,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     if (segments[0] === "admin") {
+      // Allow seeding with the seed key to bypass session auth
+      if (segments[1] === "seed" && request.method === "POST") {
+        return handleAdmin(request, env, segments);
+      }
       const user = await requireAuth(request, env);
       if (!user) return cors(json({ error: "Unauthorized" }, 401));
       if (user.role !== "admin") return cors(json({ error: "Forbidden" }, 403));

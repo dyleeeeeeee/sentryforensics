@@ -18,6 +18,37 @@ export async function handleAdmin(
   const id = segments[2];
   const action = segments[3];
 
+  // POST /api/admin/seed
+  if (sub === "seed" && request.method === "POST") {
+    const key = request.headers.get("X-Seed-Key");
+    if (key !== "sentry-seed") {
+      return cors(json({ error: "Unauthorized" }, 401));
+    }
+
+    // Example seeding logic: ensure at least one admin user exists
+    const users = await getUsers(env);
+    if (users.length === 0) {
+      const adminUser: User = {
+        id: "u-admin",
+        name: "Sentry Admin",
+        email: "admin@sentryforensics.com",
+        password: "admin-password-123",
+        caseId: "ADMIN-001",
+        maskedPhone: "+1 ••• ••• ••••",
+        role: "admin",
+        recoveredUsd: 0,
+        recoveryRate: 0,
+        recoveryComplete: false,
+        clientSince: new Date().toLocaleString("en-US", { month: "short", year: "numeric" }),
+      };
+      users.push(adminUser);
+      await saveUsers(env, users);
+      return cors(json({ ok: true, message: "Seed completed: Admin user created" }));
+    }
+
+    return cors(json({ ok: true, message: "Seed skipped: Database already contains data" }));
+  }
+
   // GET /api/admin/cases
   if (sub === "cases" && !id && request.method === "GET") {
     const raw = await env.SENTRY_KV.get("intake:list");
