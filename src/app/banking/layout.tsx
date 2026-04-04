@@ -3,80 +3,56 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getStoredUser, logout, type StoredUser } from "@/lib/api";
+import { getStoredUser, getMe, logout, type StoredUser } from "@/lib/api";
 
-export default function BankingLayoutInner({ children }: { children: React.ReactNode }) {
+export default function BankingLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<StoredUser | null>(null);
-  useEffect(() => { setUser(getStoredUser()); }, []);
-  const initials = user?.name ? user.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase() : "";
+  const [checked, setChecked] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Login page itself — skip auth check
+    if (pathname === "/banking") { setChecked(true); return; }
+
+    const stored = getStoredUser();
+    if (!stored) { router.replace("/banking"); return; }
+
+    // Re-validate token is still live
+    getMe()
+      .then(({ user: freshUser }) => { setUser(freshUser); setChecked(true); })
+      .catch(() => { router.replace("/banking"); });
+  }, [pathname, router]);
+
+  const initials = user?.name
+    ? user.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "";
+
+  // Login page — render children directly, no shell
+  if (pathname === "/banking") return <>{children}</>;
+
+  // Still verifying session
+  if (!checked) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+      <span className="h-8 w-8 border-2 rounded-full animate-spin"
+        style={{ borderColor: "var(--accent-teal)", borderTopColor: "transparent" }}/>
+    </div>
+  );
+
   return <BankingLayoutShell user={user} initials={initials}>{children}</BankingLayoutShell>;
 }
 
 const navItems = [
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-      </svg>
-    ),
-    label: "Dashboard", href: "/banking/dashboard",
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M2 20h20M4 20V10l8-6 8 6v10"/>
-        <path d="M10 20v-6h4v6"/>
-      </svg>
-    ),
-    label: "Accounts", href: "/banking/accounts",
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
-      </svg>
-    ),
-    label: "Transactions", href: "/banking/transactions",
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 12h14M12 5l7 7-7 7"/>
-      </svg>
-    ),
-    label: "Transfer", href: "/banking/transfer",
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="5" width="20" height="14" rx="2"/>
-        <path d="M2 10h20"/>
-      </svg>
-    ),
-    label: "Cards", href: "/banking/cards",
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 6v6l4 2"/>
-      </svg>
-    ),
-    label: "Recovery Status", href: "/banking/recovery-status",
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="8" r="4"/>
-        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-      </svg>
-    ),
-    label: "Settings", href: "/banking/settings",
-  },
+  { label: "Dashboard",       href: "/banking/dashboard",       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
+  { label: "Accounts",        href: "/banking/accounts",        icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20h20M4 20V10l8-6 8 6v10"/><path d="M10 20v-6h4v6"/></svg> },
+  { label: "Transactions",    href: "/banking/transactions",    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg> },
+  { label: "Transfer",        href: "/banking/transfer",        icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> },
+  { label: "Cards",           href: "/banking/cards",           icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> },
+  { label: "Recovery Status", href: "/banking/recovery-status", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> },
+  { label: "Settings",        href: "/banking/settings",        icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> },
 ];
 
-function BankingLayoutShell({ children, user, initials }: { children: React.ReactNode; user: StoredUser | null; initials: string }) { // eslint-disable-line @typescript-eslint/no-unused-vars
+function BankingLayoutShell({ children, user, initials }: { children: React.ReactNode; user: StoredUser | null; initials: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -86,14 +62,16 @@ function BankingLayoutShell({ children, user, initials }: { children: React.Reac
     router.push("/banking");
   }
 
+  const recoveryComplete = user?.recoveryComplete ?? false;
+  const recoveryLabel = recoveryComplete ? "RECOVERY COMPLETE" : "RECOVERY IN PROGRESS";
+  const recoveryColor = recoveryComplete ? "var(--accent-emerald)" : "#f59e0b";
+
   return (
     <div className="flex min-h-screen" style={{ fontFamily: "var(--font-body)" }}>
-      {/* Sidebar overlay (mobile) */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`banking-sidebar fixed top-0 left-0 z-40 h-full w-60 flex-col transition-transform duration-300 lg:translate-x-0 lg:flex ${sidebarOpen ? "flex translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         {/* Logo */}
         <div className="flex h-16 items-center gap-2.5 px-5" style={{ borderBottom: "1px solid var(--glass-border)" }}>
@@ -124,8 +102,8 @@ function BankingLayoutShell({ children, user, initials }: { children: React.Reac
             </div>
           </div>
           <div className="mt-2.5 flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full animate-pulse-dot" style={{ background: "var(--accent-emerald)" }}/>
-            <span className="text-[10px]" style={{ color: "var(--accent-emerald)", fontFamily: "var(--font-mono)" }}>RECOVERY COMPLETE</span>
+            <span className="h-1.5 w-1.5 rounded-full animate-pulse-dot" style={{ background: recoveryColor }}/>
+            <span className="text-[10px]" style={{ color: recoveryColor, fontFamily: "var(--font-mono)" }}>{recoveryLabel}</span>
           </div>
         </div>
 
@@ -138,7 +116,15 @@ function BankingLayoutShell({ children, user, initials }: { children: React.Reac
               <span className="opacity-70">{item.icon}</span>
               <span className="text-[13px]">{item.label}</span>
               {item.label === "Recovery Status" && (
-                <span className="ml-auto badge badge-success" style={{ fontSize: "9px", padding: "1px 6px" }}>DONE</span>
+                <span className="ml-auto badge text-[9px] px-1.5 py-0.5"
+                  style={{
+                    background: recoveryComplete ? "rgba(0,240,160,0.1)" : "rgba(245,158,11,0.1)",
+                    color: recoveryColor,
+                    border: `1px solid ${recoveryComplete ? "rgba(0,240,160,0.2)" : "rgba(245,158,11,0.2)"}`,
+                    borderRadius: "4px",
+                  }}>
+                  {recoveryComplete ? "DONE" : "ACTIVE"}
+                </span>
               )}
             </Link>
           ))}
@@ -167,7 +153,6 @@ function BankingLayoutShell({ children, user, initials }: { children: React.Reac
 
       {/* Main */}
       <div className="flex-1 flex flex-col lg:ml-60">
-        {/* Top bar */}
         <div className="sticky top-0 z-20 flex h-14 items-center justify-between px-6"
           style={{ background: "rgba(4,6,13,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--glass-border)" }}>
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/5">
@@ -198,7 +183,6 @@ function BankingLayoutShell({ children, user, initials }: { children: React.Reac
           </div>
         </div>
 
-        {/* Page content */}
         <main className="flex-1 p-4 sm:p-6 md:p-8">
           {children}
         </main>
