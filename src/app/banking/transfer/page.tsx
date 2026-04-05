@@ -226,7 +226,7 @@ export default function TransferPage() {
 
           {/* Transfer summary */}
           <div className="w-full rounded-xl divide-y text-left"
-            style={{ background: "var(--glass-1)", border: "1px solid var(--glass-border)", divideColor: "var(--glass-border)" }}>
+            style={{ background: "var(--glass-1)", border: "1px solid var(--glass-border)" }}>
             {[
               ["Asset", `${selectedAsset?.name} (${selectedAsset?.symbol})`],
               ["Amount", `${amount} ${selectedAsset?.symbol}`],
