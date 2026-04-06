@@ -22,7 +22,12 @@ export default function BankingLayout({ children }: { children: React.ReactNode 
     // Re-validate token is still live
     getMe()
       .then(({ user: freshUser }) => { setUser(freshUser); setChecked(true); })
-      .catch(() => { router.replace("/banking"); });
+      .catch(() => {
+        // Clear stale session so the login page doesn't auto-redirect back
+        localStorage.removeItem("sf_token");
+        localStorage.removeItem("sf_user");
+        router.replace("/banking");
+      });
   }, [pathname, router]);
 
   const initials = user?.name

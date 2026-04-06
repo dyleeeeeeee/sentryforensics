@@ -41,7 +41,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setUser(freshUser);
         setChecked(true);
       })
-      .catch(() => { router.replace("/banking"); });
+      .catch(() => {
+        localStorage.removeItem("sf_token");
+        localStorage.removeItem("sf_user");
+        router.replace("/banking");
+      });
   }, [router]);
 
   async function handleLogout() {
