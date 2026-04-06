@@ -12,8 +12,9 @@ export default function BankingLayout({ children }: { children: React.ReactNode 
   const router = useRouter();
 
   useEffect(() => {
-    // Login page itself — skip auth check
-    if (pathname === "/banking") { setChecked(true); return; }
+    // Login page itself — skip auth check (guard against trailing slash variant too)
+    const bare = pathname.replace(/\/$/, "") || "/";
+    if (bare === "/banking") { setChecked(true); return; }
 
     const stored = getStoredUser();
     if (!stored) { router.replace("/banking"); return; }
@@ -29,7 +30,7 @@ export default function BankingLayout({ children }: { children: React.ReactNode 
     : "";
 
   // Login page — render children directly, no shell
-  if (pathname === "/banking") return <>{children}</>;
+  if (pathname.replace(/\/$/, "") === "/banking") return <>{children}</>;
 
   // Still verifying session
   if (!checked) return (
